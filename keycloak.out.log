@@ -1,0 +1,9 @@
+Running the server in development mode. DO NOT use this configuration in production.
+2026-02-18 19:34:14,090 INFO  [org.hibernate.orm.jdbc.batch] (JPA Startup Thread) HHH100501: Automatic JDBC statement batching enabled (maximum batch size 32)
+2026-02-18 19:34:50,226 INFO  [org.infinispan.CONTAINER] (main) Virtual threads support enabled
+2026-02-18 19:34:51,151 INFO  [org.infinispan.CONTAINER] (main) ISPN000556: Starting user marshaller 'org.infinispan.commons.marshall.ImmutableProtoStreamMarshaller'
+2026-02-18 19:34:52,965 INFO  [org.keycloak.connections.infinispan.DefaultInfinispanConnectionProviderFactory] (main) Node name: node_240496, Site name: null
+2026-02-18 19:34:58,729 INFO  [io.quarkus] (main) Keycloak 26.4.5 on JVM (powered by Quarkus 3.27.0) started in 84.403s. Listening on: http://0.0.0.0:8080
+2026-02-18 19:34:58,751 INFO  [io.quarkus] (main) Profile dev activated. 
+2026-02-18 19:34:58,766 INFO  [io.quarkus] (main) Installed features: [agroal, cdi, hibernate-orm, jdbc-h2, keycloak, narayana-jta, opentelemetry, reactive-routes, rest, rest-jackson, smallrye-context-propagation, vertx]
+2026-02-18 19:36:33,128 WARN  [org.keycloak.events] (executor-thread-1) type="CLIENT_LOGIN_ERROR", realmId="5d19e082-7ce7-4d6a-b4f7-9c5e4deb03dd", realmName="bookmyshow", clientId="bookmyshow-app", userId="null", ipAddress="0:0:0:0:0:0:0:1", error="invalid_client", reason="Public client not allowed to retrieve service account", grant_type="client_credentials", client_auth_method="client-secret"

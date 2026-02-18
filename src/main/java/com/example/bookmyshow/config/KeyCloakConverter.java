@@ -27,3 +27,7 @@ public class KeyCloakConverter implements Converter<Jwt, Collection<GrantedAutho
         return returnValue;
     }
 }
+
+
+
+

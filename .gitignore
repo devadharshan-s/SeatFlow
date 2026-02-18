@@ -4,6 +4,9 @@ target/
 !**/src/main/**/target/
 !**/src/test/**/target/
 resources/application.properties
+.mvn/
+mvnw
+mvnw.cmd
 ### STS ###
 .apt_generated
 .classpath

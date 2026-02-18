@@ -21,3 +21,7 @@ public class AuditEntity extends BaseEntity {
     @Column(name = "update_dt", insertable = false)
     private LocalDateTime updatedt;
 }
+
+
+
+

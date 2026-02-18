@@ -21,3 +21,7 @@ public class BaseEntity {
     @Column(name = "create_dt", nullable = false, updatable = false)
     private LocalDateTime createdt;
 }
+
+
+
+
