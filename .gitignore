@@ -1,0 +1,25 @@
+# Maven / Java
+**/target/
+**/.mvn/wrapper/maven-wrapper.jar
+
+# IntelliJ
+.idea/
+**/.idea/
+*.iml
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+**/run.log
+**/run.err.log
+**/booking-run.log
+**/booking-run.err.log
+
+# Environment / secrets
+.env
+**/.env
+**/application-local.properties
+

@@ -1,0 +1,9 @@
+package org.example.bookmyshowshowservice.show.client;
+
+public interface TicketClient {
+
+    void deleteTickets(Long showId);
+
+    void validateTicketExists(Long ticketId);
+}
+
