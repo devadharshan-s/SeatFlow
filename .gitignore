@@ -1,11 +1,23 @@
 # Maven / Java
 **/target/
 **/.mvn/wrapper/maven-wrapper.jar
+!**/src/main/**/target/
+!**/src/test/**/target/
 
-# IntelliJ
+# IDE / editors
 .idea/
 **/.idea/
 *.iml
+*.ipr
+*.iws
+.vscode/
+
+# Build folders from other tools
+/build/
+/dist/
+/nbdist/
+/nbbuild/
+/out/
 
 # OS
 .DS_Store
@@ -17,8 +29,10 @@ Thumbs.db
 **/run.err.log
 **/booking-run.log
 **/booking-run.err.log
+keycloak.err.log
+keycloak.out.log
 
-# Environment / secrets
+# Environment / local overrides
 .env
 **/.env
 **/application-local.properties
