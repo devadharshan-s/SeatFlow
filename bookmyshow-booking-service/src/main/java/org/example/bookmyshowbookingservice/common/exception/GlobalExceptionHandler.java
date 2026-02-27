@@ -2,12 +2,14 @@ package org.example.bookmyshowbookingservice.common.exception;
 
 import feign.FeignException;
 import org.example.bookmyshowbookingservice.booking.exception.BookingFailedException;
+import org.example.bookmyshowbookingservice.booking.exception.ConcurrentTicketUpdateException;
 import org.example.bookmyshowbookingservice.booking.exception.InvalidShowIdException;
 import org.example.bookmyshowbookingservice.booking.exception.TicketCancellationException;
 import org.example.bookmyshowbookingservice.booking.exception.TicketDeletionException;
 import org.example.bookmyshowbookingservice.common.dto.ApiResponse;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
@@ -34,6 +36,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(TicketDeletionException.class)
     public ResponseEntity<ApiResponse<Void>> handleTicketDeletion(TicketDeletionException ex) {
         return build(HttpStatus.INTERNAL_SERVER_ERROR, ex.getMessage());
+    }
+
+    @ExceptionHandler({ConcurrentTicketUpdateException.class, ObjectOptimisticLockingFailureException.class})
+    public ResponseEntity<ApiResponse<Void>> handleOptimisticLocking(Exception ex) {
+        return build(HttpStatus.CONFLICT, "Concurrent update detected. Please retry.");
     }
 
     @ExceptionHandler(DownstreamServiceException.class)

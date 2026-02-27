@@ -9,6 +9,7 @@ import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.Table;
+import jakarta.persistence.Version;
 import lombok.Getter;
 import lombok.Setter;
 
@@ -38,4 +39,8 @@ public class Ticket {
 
     @Column(name = "amount_paid")
     private double amountPaid;
+
+    @Version
+    @Column(name = "version")
+    private Long version;
 }

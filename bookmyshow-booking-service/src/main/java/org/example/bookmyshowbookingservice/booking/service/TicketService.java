@@ -7,6 +7,7 @@ import org.example.bookmyshowbookingservice.booking.client.ShowClient;
 import org.example.bookmyshowbookingservice.booking.client.ShowSeatClient;
 import org.example.bookmyshowbookingservice.booking.client.UserClient;
 import org.example.bookmyshowbookingservice.booking.exception.BookingFailedException;
+import org.example.bookmyshowbookingservice.booking.exception.ConcurrentTicketUpdateException;
 import org.example.bookmyshowbookingservice.booking.exception.InvalidShowIdException;
 import org.example.bookmyshowbookingservice.booking.exception.TicketCancellationException;
 import org.example.bookmyshowbookingservice.booking.exception.TicketDeletionException;
@@ -18,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.modelmapper.ModelMapper;
 import org.springframework.dao.DataAccessException;
+import org.springframework.dao.OptimisticLockingFailureException;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
@@ -147,7 +149,15 @@ public class TicketService {
         response.setShowId(ticket.getShowId());
         response.setSeatIds(bookedSeats);
 
-        ticketRepostiory.deleteById(ticketId);
+        try {
+            ticketRepostiory.delete(ticket);
+            ticketRepostiory.flush();
+        } catch (OptimisticLockingFailureException ex) {
+            throw new ConcurrentTicketUpdateException(
+                    "Ticket was modified concurrently. Please retry cancellation.",
+                    ex
+            );
+        }
 
         return response;
     }
