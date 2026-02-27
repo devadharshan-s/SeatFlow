@@ -72,6 +72,5 @@ Recommended startup order:
 
 ## Project Evolution
 
-This repository may still contain earlier monolith/modulith artifacts at root (`src/`, root `pom.xml`) for reference/history.  
-The active microservices are the five `bookmyshow-*-service` folders listed above.
-
+This repository now focuses on the microservices split only.  
+The active services are the five `bookmyshow-*-service` folders listed above.
