@@ -23,14 +23,18 @@ public class LockService {
     public List<Long> lockSeats(List<Long> seatIds, int seconds) {
 
             if(seatIds == null || seatIds.isEmpty())
-                throw new SeatNotFoundException("❌ Seats are not found, Please check Seat Ids!");
+                throw new SeatNotFoundException("Seats are not found, Please check Seat Ids!");
 
             List<ShowSeat> showSeats = showSeatRepository.findShowSeatByShowSeatIdIs(seatIds);
 
             for (ShowSeat seat : showSeats) {
+                if (Boolean.TRUE.equals(seat.getIsBooked())) {
+                    log.error("{} is already booked!", seat.getShowSeatId());
+                    throw new SeatOperationException("One or more seats are already booked.");
+                }
                 if (seat.getLockedUntil() != null && seat.getLockedUntil().isAfter(LocalDateTime.now())) {
                     log.error(seat.getShowSeatId() + " is already locked!");
-                    throw new SeatOperationException("❌ Seats are already locked, Please try again!");
+                    throw new SeatOperationException("Seats are already locked, Please try again!");
                 }
                 seat.setLockedUntil(LocalDateTime.now().plusSeconds(seconds));
             }
@@ -41,8 +45,3 @@ public class LockService {
 
     }
 }
-
-
-
-
-

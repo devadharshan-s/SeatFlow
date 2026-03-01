@@ -124,6 +124,9 @@ public class TicketService {
         }
         List<Long> bookedSeatIds = bookedSeatResponse.getData();
 
+        ticket.setShowSeatIds(bookedSeatIds);
+        ticketRepostiory.save(ticket);
+
         ApiResponse<Boolean> unlockResponse = seatClient.unlockSeats(ticket.getTicketId(), bookedSeatIds);
         if (unlockResponse == null || unlockResponse.getData() == null || !unlockResponse.getData()) {
             throw new BookingFailedException("Seat unlock failed for ticketId: " + ticket.getTicketId());
