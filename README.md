@@ -12,6 +12,7 @@ SeatFlow is a BookMyShow-style backend project that evolved through:
 - `bookmyshow-show-service` (port `8086`)
 - `bookmyshow-theatre-service` (port `8087`)
 - `bookmyshow-movie-service` (port `8088`)
+- `bookmyshow-user-service` (port `8089`)
 
 ## Tech Stack
 
@@ -38,6 +39,7 @@ Create these databases before starting services:
 - `bookmyshow_show`
 - `bookmyshow_theatre`
 - `bookmyshow_movie`
+- `bookmyshow_user`
 
 ## Environment Variables
 
@@ -60,8 +62,9 @@ Recommended startup order:
 1. `bookmyshow-theatre-service`
 2. `bookmyshow-movie-service`
 3. `bookmyshow-show-service`
-4. `bookmyshow-booking-service`
-5. `bookmyshow-payment-service`
+4. `bookmyshow-user-service`
+5. `bookmyshow-booking-service`
+6. `bookmyshow-payment-service`
 
 ## Notes
 
