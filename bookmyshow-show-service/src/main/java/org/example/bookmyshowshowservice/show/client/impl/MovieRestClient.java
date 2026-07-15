@@ -4,16 +4,19 @@ import org.example.bookmyshowshowservice.common.dto.ApiResponse;
 import org.example.bookmyshowshowservice.common.exception.MovieNotFoundException;
 import org.example.bookmyshowshowservice.show.client.dto.MovieResponseDTO;
 import org.example.bookmyshowshowservice.show.client.MovieClient;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-@Component
-@RequiredArgsConstructor
+@Component("movieClient")
 public class MovieRestClient implements MovieClient {
 
     private final RestClient restClient;
+
+    public MovieRestClient(@Qualifier("movieRestClient") RestClient restClient) {
+        this.restClient = restClient;
+    }
 
     @Override
     public MovieResponseDTO getMovie(Long movieId) {
@@ -29,4 +32,3 @@ public class MovieRestClient implements MovieClient {
         return response.getData();
     }
 }
-

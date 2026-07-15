@@ -4,21 +4,26 @@ import org.example.bookmyshowshowservice.common.dto.ApiResponse;
 import org.example.bookmyshowshowservice.common.exception.ScreenNotFoundException;
 import org.example.bookmyshowshowservice.show.client.ScreenClient;
 import org.example.bookmyshowshowservice.show.client.dto.ScreenResponseDTO;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-@Component
-@RequiredArgsConstructor
+@Component("screenClient")
 public class ScreenRestClient implements ScreenClient {
 
     private final RestClient restClient;
 
+    public ScreenRestClient(@Qualifier("theatreRestClient") RestClient restClient) {
+        this.restClient = restClient;
+    }
+
     @Override
     public ScreenResponseDTO getScreen(long screenId) {
         ApiResponse<ScreenResponseDTO> response = restClient.get()
-                .uri("/getScreen/{screenId}", screenId)
+                .uri(uriBuilder -> uriBuilder.path("/getScreen")
+                        .queryParam("screenId", screenId)
+                        .build())
                 .retrieve()
                 .body(new ParameterizedTypeReference<ApiResponse<ScreenResponseDTO>>() {});
 
@@ -29,4 +34,3 @@ public class ScreenRestClient implements ScreenClient {
         return response.getData();
     }
 }
-

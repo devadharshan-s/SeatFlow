@@ -4,16 +4,19 @@ import org.example.bookmyshowshowservice.common.dto.ApiResponse;
 import org.example.bookmyshowshowservice.common.exception.TheatreNotFoundException;
 import org.example.bookmyshowshowservice.show.client.TheatreClient;
 import org.example.bookmyshowshowservice.show.client.dto.TheatreDTO;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
 
-@Component
-@RequiredArgsConstructor
+@Component("theatreClient")
 public class TheatreRestClient implements TheatreClient {
 
     private final RestClient restClient;
+
+    public TheatreRestClient(@Qualifier("theatreRestClient") RestClient restClient) {
+        this.restClient = restClient;
+    }
 
     @Override
     public TheatreDTO getTheatre(Long theatreId) {

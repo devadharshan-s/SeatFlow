@@ -6,8 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 
 @FeignClient(
-        name = "bookingClient",
-        url = "${services.booking.base-url}",
+        name = "bookmyshow-booking-service",
         configuration = TicketClientFeignConfig.class
 )
 public interface TicketClient {

@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
 
-@FeignClient(name = "showSeatClient", url = "${services.show.base-url}", configuration = FeignClientConfig.class)
+@FeignClient(name = "bookmyshow-show-service", contextId = "showSeatClient", configuration = FeignClientConfig.class)
 public interface SeatClient {
 
     @PostMapping("/shows/{showId}/resolve-seat-ids")

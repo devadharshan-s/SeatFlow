@@ -2,6 +2,7 @@ package org.example.bookmyshowuserservice.user.service;
 
 import lombok.RequiredArgsConstructor;
 import org.example.bookmyshowuserservice.common.exception.UserNotFoundException;
+import org.example.bookmyshowuserservice.services.KeyCloakAdminService;
 import org.example.bookmyshowuserservice.user.api.dto.UserRequestDTO;
 import org.example.bookmyshowuserservice.user.api.dto.UserResponseDTO;
 import org.example.bookmyshowuserservice.user.exception.UserOperationException;
@@ -20,6 +21,7 @@ public class UserService {
 
     private final UserRepository userRepository;
     private final RoleRepository roleRepository;
+    private final KeyCloakAdminService keyCloakAdminService;
 
     @Transactional
     public UserResponseDTO createUser(UserRequestDTO request) {
@@ -37,14 +39,29 @@ public class UserService {
         Role defaultRole = roleRepository.findByRoleName("USER")
                 .orElseThrow(() -> new UserOperationException("Default role USER not configured"));
 
-        User user = new User();
-        user.setUserName(request.getUserName());
-        user.setEmail(request.getEmail());
-        user.setPhone(request.getPhone());
-        user.setPassword(request.getPassword());
-        user.setRole(defaultRole);
+        String keycloakId = keyCloakAdminService.createUser(
+                request.getUserName(),
+                request.getEmail(),
+                request.getPassword(),
+                request.getUserName(),
+                "X",
+                request.getPhone()
+        );
 
-        return toResponse(userRepository.save(user));
+        try {
+            User user = new User();
+            user.setUserName(request.getUserName());
+            user.setEmail(request.getEmail());
+            user.setPhone(request.getPhone());
+            user.setPassword(request.getPassword());
+            user.setKeyCloakId(keycloakId);
+            user.setRole(defaultRole);
+
+            return toResponse(userRepository.save(user));
+        } catch (Exception ex) {
+            keyCloakAdminService.deleteUser(keycloakId);
+            throw new UserOperationException("Failed to save user in DB after Keycloak creation", ex);
+        }
     }
 
     @Transactional(readOnly = true)
@@ -73,6 +90,9 @@ public class UserService {
                 .orElseThrow(() -> new UserNotFoundException("User not found for email: " + email));
 
         UserResponseDTO response = toResponse(user);
+        if (user.getKeyCloakId() != null && !user.getKeyCloakId().isBlank()) {
+            keyCloakAdminService.deleteUser(user.getKeyCloakId());
+        }
         userRepository.delete(user);
         return response;
     }
@@ -119,4 +139,3 @@ public class UserService {
         return dto;
     }
 }
-

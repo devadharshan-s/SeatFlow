@@ -6,7 +6,7 @@ import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-@FeignClient(name = "userClient", url = "${services.user.base-url}", configuration = FeignClientConfig.class)
+@FeignClient(name = "bookmyshow-user-service", configuration = FeignClientConfig.class)
 public interface UserClient {
 
     @GetMapping("/getUser")

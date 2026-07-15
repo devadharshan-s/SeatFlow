@@ -4,7 +4,7 @@ import org.example.bookmyshowshowservice.common.dto.ApiResponse;
 import org.example.bookmyshowshowservice.show.client.SeatClient;
 import org.example.bookmyshowshowservice.show.exception.SeatNotFoundException;
 import org.example.bookmyshowshowservice.show.client.dto.SeatResponseDTO;
-import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestClient;
@@ -13,10 +13,13 @@ import java.util.List;
 import java.util.Map;
 
 @Component("showModuleSeatRestClient")
-@RequiredArgsConstructor
 public class SeatRestClient implements SeatClient {
 
     private final RestClient restClient;
+
+    public SeatRestClient(@Qualifier("theatreRestClient") RestClient restClient) {
+        this.restClient = restClient;
+    }
 
     @Override
     public Map<Long, SeatResponseDTO> getSeats(List<Long> seatIds) {

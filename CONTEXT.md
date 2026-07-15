@@ -18,6 +18,13 @@ Refactor BookMyShowClone into a modular monolith. Currently refactoring movie mo
 - Refactor createMovie flow (genre resolve + cast validation + moviecast creation).
 - Consider extracting MovieCastService.
 
+## Runtime Notes
+- Verified `bookmyshow-theatre-service` starts successfully on port `8087` when `DB_PASSWORD=@Shawn123`.
+- The failure seen during startup was not application logic; it was MySQL authentication:
+  - `Access denied for user 'root'@'localhost' (using password: YES)`
+- Maven resolution in the sandbox was also misleading because the default local repo was `C:\Users\CodexSandboxOffline\.m2`, while the populated cache is under `C:\Users\devad\.m2\repository`.
+- The project is pinned to Spring Boot `3.5.6`, which matches the cached local Maven artifacts and allows offline startup.
+
 ## Last Files Touched
 - src/main/java/com/example/bookmyshow/movie/repository/MovieRepository.java
 - src/main/java/com/example/bookmyshow/movie/repository/GenreRepository.java
