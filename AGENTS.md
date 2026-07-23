@@ -13,14 +13,16 @@ how to test:
 coding conventions:
 -leave a line at starting and ending of each method
 -Write comments only if necessary for process like 
-    calling other service, method(not for curd operations)
+    calling other service, method(not for crud operations)
     tricky implementation
     optimizations/workarounds
 
 architecture notes
 -This is a project focused on microservices that is both resume worthy and interview ready
 -Don't break the services and explain every change you make in a interview depth level for deeper understanding + mention the concepts used from an interview point of view
--Currently trying to integrate redis(caching) + retry + rate limiting into this proj on top of existing services as microservice
+-Completed integration of Netflix Eureka Service Discovery.
+-Currently working on integrating and spinning up Redis as a cache for the seat locking mechanism, replacing slower service-layer and database-layer locks with distributed locks.
+-Plans to integrate resilience (Retry) and rate limiting.
 
 files or folders to avoid touching
 -currently none

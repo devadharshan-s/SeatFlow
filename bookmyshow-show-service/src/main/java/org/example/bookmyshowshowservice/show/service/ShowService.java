@@ -1,15 +1,16 @@
 package org.example.bookmyshowshowservice.show.service;
 
+import org.example.bookmyshowshowservice.common.dto.ApiResponse;
 import org.example.bookmyshowshowservice.show.api.dto.ShowDTO;
 import org.example.bookmyshowshowservice.show.api.dto.ShowResponseDTO;
-import org.example.bookmyshowshowservice.show.client.impl.*;
+import org.example.bookmyshowshowservice.show.client.*;
+import org.example.bookmyshowshowservice.show.client.dto.ScreenResponseDTO;
+import org.example.bookmyshowshowservice.show.client.dto.SeatResponseDTO;
 import org.example.bookmyshowshowservice.show.exception.ShowNotFoundException;
 import org.example.bookmyshowshowservice.show.exception.ShowOperationException;
 import org.example.bookmyshowshowservice.show.model.ShowSeat;
 import org.example.bookmyshowshowservice.show.model.Shows;
 import org.example.bookmyshowshowservice.show.repository.ShowsRepository;
-import org.example.bookmyshowshowservice.show.client.dto.ScreenResponseDTO;
-import org.example.bookmyshowshowservice.show.client.dto.SeatResponseDTO;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -30,38 +31,48 @@ import java.util.Optional;
 public class ShowService {
 
     private final ShowsRepository showRepository;
-    private final MovieRestClient movieRestClient;
-    private final TheatreRestClient theatreRestClient;
-    private final ScreenRestClient screenRestClient;
-    private final SeatRestClient seatRestClient;
-    private final TicketRestClient ticketRestClient;
+    private final MovieClient movieClient;
+    private final TheatreClient theatreClient;
+    private final ScreenClient screenClient;
+    private final SeatClient seatClient;
+    private final TicketClient ticketClient;
     private final ModelMapper modelMapper;
 
     @Transactional
     public List<ShowResponseDTO> getAllShows(int page, int size) {
+
         Pageable pageable = PageRequest.of(page, size, Sort.by("startTime").descending());
         Page<Shows> shows = showRepository.findAll(pageable);
 
         return shows.stream()
                 .map(show -> modelMapper.map(show, ShowResponseDTO.class))
                 .toList();
+
     }
 
+    public ShowResponseDTO getShowById(long showId) {
 
-    @Transactional
-    public ShowDTO getShowById(long showId){
+        if (showId <= 0) {
+            throw new ShowNotFoundException("Check entered Show Id: " + showId);
+        }
 
-            Shows show = showRepository.findByShowId(showId)
-                    .orElseThrow(() -> new ShowNotFoundException("show not found for the id " + showId));
-            return modelMapper.map(show, ShowDTO.class);
+        Shows show = showRepository.findByShowId(showId)
+                .orElseThrow(() -> new ShowNotFoundException("Show was not found for the given Id!"));
+
+        return modelMapper.map(show, ShowResponseDTO.class);
+
     }
 
-//    Should only allow to create shows if movie,seat,screen & theatre exists
     @Transactional
-    public ShowDTO createShows(ShowDTO show) {
+    public ShowDTO createShow(ShowDTO show) {
+
+        if (show == null) {
+            throw new ShowOperationException("Show data cannot be null");
+        }
+
         long screenId = show.getScreenId();
-        long theatreId = show.getTheatreId();
         long movieId = show.getMovieId();
+        long theatreId = show.getTheatreId();
 
         if (screenId <= 0) {
             throw new ShowOperationException("Invalid screen ID");
@@ -73,12 +84,17 @@ public class ShowService {
             throw new ShowOperationException("Invalid movie ID");
         }
 
-//      Calls made to check if movie and theatre exist
-        movieRestClient.getMovie(movieId);
-        theatreRestClient.getTheatre(theatreId);
-        ScreenResponseDTO screen = screenRestClient.getScreen(screenId);
+        // Inter-service verification calls
+        movieClient.getMovie(movieId);
+        theatreClient.getTheatre(theatreId);
 
-//      Validate screen belongs to the theatre
+        ApiResponse<ScreenResponseDTO> screenResponse = screenClient.getScreen(screenId);
+        ScreenResponseDTO screen = (screenResponse != null) ? screenResponse.getData() : null;
+        if (screen == null) {
+            throw new ShowOperationException("Screen not found for ID: " + screenId);
+        }
+
+        // Validate screen belongs to the theatre
         if (screen.getTheatreId() != theatreId) {
             throw new ShowOperationException("Screen does not belong to the selected theatre");
         }
@@ -109,7 +125,8 @@ public class ShowService {
         newShow.setEndTime(show.getEndTime());
         newShow = showRepository.save(newShow);
 
-        List<SeatResponseDTO> seats = seatRestClient.getSeatsByScreen(screenId);
+        ApiResponse<List<SeatResponseDTO>> seatsResponse = seatClient.getSeatsByScreen(screenId);
+        List<SeatResponseDTO> seats = (seatsResponse != null) ? seatsResponse.getData() : null;
         if (seats == null || seats.isEmpty()) {
             throw new ShowOperationException("No seats found for the selected screen");
         }
@@ -125,6 +142,7 @@ public class ShowService {
         newShow = showRepository.save(newShow);
 
         return modelMapper.map(newShow, ShowDTO.class);
+
     }
 
     @Transactional
@@ -144,11 +162,11 @@ public class ShowService {
         boolean screenChanged = false;
         boolean timingChanged = false;
 
-//      Check if Screen Id exists
+        // Check if Screen Id exists
         if (showDTO.getScreenId() > 0) {
-            ScreenResponseDTO screen = screenRestClient.getScreen(showDTO.getScreenId());
-//      Check if screen belongs to the theatre
-            if (screen.getTheatreId() != show.getTheatreId()) {
+            ApiResponse<ScreenResponseDTO> screenResponse = screenClient.getScreen(showDTO.getScreenId());
+            ScreenResponseDTO screen = (screenResponse != null) ? screenResponse.getData() : null;
+            if (screen == null || screen.getTheatreId() != show.getTheatreId()) {
                 throw new ShowOperationException("Screen does not belong to the show's theatre");
             }
 
@@ -156,7 +174,7 @@ public class ShowService {
             screenChanged = effectiveScreenId != show.getScreenId();
         }
 
-//       Check if timings exist in the DTO and are valid
+        // Check if timings exist in the DTO and are valid
         if (showDTO.getStartTime() != null || showDTO.getEndTime() != null) {
             if (showDTO.getStartTime() == null || showDTO.getEndTime() == null) {
                 throw new ShowOperationException("Both startTime and endTime are required");
@@ -170,7 +188,7 @@ public class ShowService {
             timingChanged = !effectiveStartTime.equals(show.getStartTime()) || !effectiveEndTime.equals(show.getEndTime());
         }
 
-//        If screen or timing has changed check if it conflicts with existing show!
+        // If screen or timing has changed check if it conflicts with existing show!
         if (screenChanged || timingChanged) {
             Optional<Shows> conflict = showRepository.findByScreenIdAndStartTimeLessThanAndEndTimeGreaterThan(
                     effectiveScreenId,
@@ -186,7 +204,7 @@ public class ShowService {
         }
 
         if (showDTO.getMovieId() > 0) {
-            movieRestClient.getMovie(showDTO.getMovieId());
+            movieClient.getMovie(showDTO.getMovieId());
             show.setMovieId(showDTO.getMovieId());
         }
 
@@ -202,10 +220,12 @@ public class ShowService {
         showRepository.save(show);
 
         return modelMapper.map(show, ShowResponseDTO.class);
+
     }
 
     @Transactional
     public void removeShows(long showId) {
+
         if (showId <= 0) {
             throw new ShowOperationException("Invalid show ID: " + showId);
         }
@@ -213,33 +233,8 @@ public class ShowService {
         showRepository.findByShowId(showId)
                 .orElseThrow(() -> new ShowNotFoundException("Show was not found for the given Id!"));
 
-        ticketRestClient.deleteTickets(showId);
+        ticketClient.deleteTickets(showId);
         showRepository.deleteByShowId(showId);
+
     }
-
-//    public boolean isShowConflict(List<Shows> shows,
-//                                  LocalDateTime newStart,
-//                                  LocalDateTime newEnd,
-//                                  long showId) {
-//
-//        for (Shows existing : shows) {
-//
-//            // Skip same show during update
-//            if (existing.getShowId() == showId) continue;
-//
-//            LocalDateTime existingStart = existing.getStartTime();
-//            LocalDateTime existingEnd   = existing.getEndTime();
-//
-//            boolean overlap =
-//                    existingStart.isBefore(newEnd) &&
-//                            existingEnd.isAfter(newStart);
-//
-//            if (overlap) {
-//                return true; // conflict found
-//            }
-//        }
-//        return false; // safe
-//    }
 }
-
-

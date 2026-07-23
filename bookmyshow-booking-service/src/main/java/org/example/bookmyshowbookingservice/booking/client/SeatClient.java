@@ -1,5 +1,6 @@
 package org.example.bookmyshowbookingservice.booking.client;
 
+import org.example.bookmyshowbookingservice.booking.client.impl.SeatClientFallback;
 import org.example.bookmyshowbookingservice.common.dto.ApiResponse;
 import org.example.bookmyshowbookingservice.config.FeignClientConfig;
 import org.springframework.cloud.openfeign.FeignClient;
@@ -10,7 +11,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import java.util.List;
 
-@FeignClient(name = "bookmyshow-show-service", contextId = "showSeatClient", configuration = FeignClientConfig.class)
+@FeignClient(name = "bookmyshow-show-service", contextId = "showSeatClient", configuration = FeignClientConfig.class, fallback = SeatClientFallback.class)
 public interface SeatClient {
 
     @PostMapping("/shows/{showId}/resolve-seat-ids")

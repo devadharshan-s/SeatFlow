@@ -1,5 +1,6 @@
 package org.example.bookmyshowshowservice.show.service;
 
+import org.example.bookmyshowshowservice.common.dto.ApiResponse;
 import org.example.bookmyshowshowservice.common.exception.TicketNotFoundException;
 import org.example.bookmyshowshowservice.show.api.dto.SeatAvailabilityResponse;
 import org.example.bookmyshowshowservice.show.client.SeatClient;
@@ -46,7 +47,8 @@ public class ShowSeatService {
         Map<Long, ShowSeat> showSeatsMap = showSeats.stream()
                 .collect(Collectors.toMap(ShowSeat::getSeatId, seat -> seat));
 
-        Map<Long, SeatResponseDTO> seatDetails = seatClient.getSeats(showSeats.stream().map(ShowSeat::getSeatId).toList());
+        ApiResponse<Map<Long, SeatResponseDTO>> seatsResponse = seatClient.getSeats(showSeats.stream().map(ShowSeat::getSeatId).toList());
+        Map<Long, SeatResponseDTO> seatDetails = (seatsResponse != null && seatsResponse.getData() != null) ? seatsResponse.getData() : Map.of();
 
         List<SeatAvailabilityResponse> response = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();

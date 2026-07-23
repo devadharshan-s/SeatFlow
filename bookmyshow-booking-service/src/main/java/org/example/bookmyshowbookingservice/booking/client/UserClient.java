@@ -1,12 +1,13 @@
 package org.example.bookmyshowbookingservice.booking.client;
 
+import org.example.bookmyshowbookingservice.booking.client.impl.UserClientFallback;
 import org.example.bookmyshowbookingservice.common.dto.ApiResponse;
 import org.example.bookmyshowbookingservice.config.FeignClientConfig;
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 
-@FeignClient(name = "bookmyshow-user-service", configuration = FeignClientConfig.class)
+@FeignClient(name = "bookmyshow-user-service", configuration = FeignClientConfig.class, fallback = UserClientFallback.class)
 public interface UserClient {
 
     @GetMapping("/getUser")

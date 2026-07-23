@@ -1,22 +1,13 @@
 # Context
 
 ## Goal
-Refactor BookMyShowClone into a modular monolith. Currently refactoring movie module.
-
-## Decisions
-- Keep MovieCast as a join entity (single movie + single person).
-- Genres can be created on the fly; cast members must already exist.
-- Keep updateGenres; remove resolveGenres.
-
-## Changes Done
-- MovieRepository generic ID -> Long.
-- Added GenreOperationException and global handler entries.
-- GenreRepository: implemented findByNameIn.
-- Removed resolveGenres from GenreService.
+Integrate and spin up Redis as a cache for the seat locking mechanism to replace slow service-layer and database-layer locks.
 
 ## Next Focus
-- Refactor createMovie flow (genre resolve + cast validation + moviecast creation).
-- Consider extracting MovieCastService.
+- Configure Redis connection properties in `bookmyshow-show-service`.
+- Implement distributed locking mechanism using Redis (SETNX or Redisson client).
+- Ensure thread-safe seat selection operations in the code.
+- Establish graceful TTL seat release policies.
 
 ## Runtime Notes
 - Verified `bookmyshow-theatre-service` starts successfully on port `8087` when `DB_PASSWORD=@Shawn123`.

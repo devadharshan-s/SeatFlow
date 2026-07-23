@@ -31,8 +31,8 @@ public class ShowsController {
     }
 
     @GetMapping("/getShowById")
-    public ResponseEntity<ApiResponse<ShowDTO>> getShowById(@RequestParam long showId){
-        ShowDTO response =  showService.getShowById(showId);
+    public ResponseEntity<ApiResponse<ShowResponseDTO>> getShowById(@RequestParam long showId){
+        ShowResponseDTO response =  showService.getShowById(showId);
 
         return ResponseEntity.ok(
                 new ApiResponse<>(
@@ -46,7 +46,7 @@ public class ShowsController {
 
     @PostMapping("/createShow")
     public ResponseEntity<ApiResponse<ShowDTO>> addShow(@RequestBody ShowDTO show){
-        ShowDTO response = showService.createShows(show);
+        ShowDTO response = showService.createShow(show);
         return ResponseEntity.ok(
                 new ApiResponse<>(
                         200,
