@@ -21,7 +21,8 @@ architecture notes
 -This is a project focused on microservices that is both resume worthy and interview ready
 -Don't break the services and explain every change you make in a interview depth level for deeper understanding + mention the concepts used from an interview point of view
 -Completed integration of Netflix Eureka Service Discovery.
--Currently working on integrating and spinning up Redis as a cache for the seat locking mechanism, replacing slower service-layer and database-layer locks with distributed locks.
+-Completed multi-module Maven project refactoring (improving parent POM structure and dependencies).
+-Currently working on integrating, completing, and upgrading Redis as a cache/distributed lock for the seat locking mechanism to replace slower service-layer and database-layer locks with production-ready distributed locking.
 -Plans to integrate resilience (Retry) and rate limiting.
 
 files or folders to avoid touching
