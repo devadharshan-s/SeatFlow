@@ -1,6 +1,7 @@
 package org.example.bookmyshowbookingservice.common.exception;
 
 import feign.FeignException;
+import io.github.resilience4j.circuitbreaker.CallNotPermittedException;
 import org.example.bookmyshowbookingservice.booking.exception.BookingFailedException;
 import org.example.bookmyshowbookingservice.booking.exception.ConcurrentTicketUpdateException;
 import org.example.bookmyshowbookingservice.booking.exception.InvalidShowIdException;
@@ -59,6 +60,22 @@ public class GlobalExceptionHandler {
             status = HttpStatus.BAD_GATEWAY;
         }
         return build(status, "Downstream service call failed");
+    }
+
+    @ExceptionHandler(RateLimitExceededException.class)
+    public ResponseEntity<ApiResponse<Void>> handleRateLimitExceeded(RateLimitExceededException ex) {
+
+        return ResponseEntity.status(HttpStatus.TOO_MANY_REQUESTS)
+                .header("Retry-After", "60")
+                .body(new ApiResponse<>(429, ex.getMessage(), null, LocalDateTime.now()));
+
+    }
+
+    @ExceptionHandler(CallNotPermittedException.class)
+    public ResponseEntity<ApiResponse<Void>> handleCircuitBreakerOpen(CallNotPermittedException ex) {
+
+        return build(HttpStatus.SERVICE_UNAVAILABLE, "Service temporarily unavailable. Please try again later.");
+
     }
 
     @ExceptionHandler(Exception.class)

@@ -38,7 +38,7 @@ public class ShowSeatService {
     @Lazy
     private ShowSeatService self;
 
-        private final ShowSeatRepository showSeatRepository;
+    private final ShowSeatRepository showSeatRepository;
     private final ShowsRepository showsRepository;
     private final SeatClient seatClient;
     private final TicketClient ticketClient;
@@ -166,6 +166,16 @@ public class ShowSeatService {
         Long showId = showSeats.get(0).getShow().getShowId();
 
         showSeats.forEach(seat -> {
+
+            if (Boolean.TRUE.equals(seat.getIsBooked())) {
+                if (!ticketId.equals(seat.getTicketId())) {
+                    throw new SeatOperationException(
+                            "Seat " + seat.getShowSeatId() + " is already booked by another user");
+                }
+                // Since seat is already booked, idempotent re-transmission skip!
+                return;
+            }
+
             seat.setIsBooked(Boolean.TRUE);
             seat.setTicketId(ticketId);
         });
@@ -191,7 +201,8 @@ public class ShowSeatService {
 
         for (ShowSeat showSeat : showSeats) {
             if (!ticketId.equals(showSeat.getTicketId())) {
-                throw new SeatOperationException("Seat " + showSeat.getShowSeatId() + " is not associated with ticketId: " + ticketId);
+                throw new SeatOperationException(
+                        "Seat " + showSeat.getShowSeatId() + " is not associated with ticketId: " + ticketId);
             }
             showSeat.setLockedUntil(null);
         }
@@ -225,7 +236,8 @@ public class ShowSeatService {
     }
 
     public void evictShowSeatsCache(Long showId) {
-        if (showId == null) return;
+        if (showId == null)
+            return;
         org.springframework.cache.Cache cache = cacheManager.getCache("showSeatsCache");
         if (cache != null) {
             cache.evict(showId + "-ALL");
@@ -242,7 +254,8 @@ public class ShowSeatService {
     }
 
     public List<Long> holdSeatsFallback(Long ticketId, List<Long> showSeatIds, int holdSeconds, Throwable t) {
-        log.error("Redis holdSeats failed, circuit breaker active. Falling back to MySQL LockService. Error: {}", t.getMessage());
+        log.error("Redis holdSeats failed, circuit breaker active. Falling back to MySQL LockService. Error: {}",
+                t.getMessage());
         return lockService.lockSeats(showSeatIds, holdSeconds);
     }
 
@@ -252,7 +265,9 @@ public class ShowSeatService {
     }
 
     public Boolean releaseHoldFallback(Long ticketId, Throwable t) {
-        log.error("Redis releaseHold failed for ticketId: {}, ignoring since MySQL locks expire automatically. Error: {}", ticketId, t.getMessage());
+        log.error(
+                "Redis releaseHold failed for ticketId: {}, ignoring since MySQL locks expire automatically. Error: {}",
+                ticketId, t.getMessage());
         return true;
     }
 
@@ -262,7 +277,8 @@ public class ShowSeatService {
     }
 
     public List<Long> confirmHoldFallback(Long ticketId, Throwable t) {
-        log.error("Redis confirmHold failed for ticketId: {}, falling back to database query. Error: {}", ticketId, t.getMessage());
+        log.error("Redis confirmHold failed for ticketId: {}, falling back to database query. Error: {}", ticketId,
+                t.getMessage());
         try {
             List<Long> seatIds = getShowSeatsByTicketId(ticketId);
             unlockSeats(ticketId, seatIds);
@@ -279,8 +295,3 @@ public class ShowSeatService {
         ticketClient.validateTicketExists(ticketId);
     }
 }
-
-
-
-
-

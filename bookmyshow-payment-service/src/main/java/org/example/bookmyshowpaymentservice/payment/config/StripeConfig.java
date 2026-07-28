@@ -17,7 +17,8 @@ public class StripeConfig {
     void init() {
         String secretKey = stripeProperties.getSecretKey();
         if (secretKey == null || secretKey.isBlank()) {
-            throw new IllegalStateException("Stripe secret key is missing. Configure payment.stripe.secret-key");
+            log.warn("Stripe secret key is missing. Falling back to mock dev key 'sk_test_mock_dev_key'.");
+            secretKey = "sk_test_mock_dev_key";
         }
 
         Stripe.apiKey = secretKey;

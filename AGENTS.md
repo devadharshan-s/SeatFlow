@@ -2,14 +2,23 @@
 
 ## How to Run / Build
 
-Since this is a microservices project, run these services on the mentioned ports. Please check if these ports are already in use and terminate existing non-vital processes if needed:
-* **bookmyshow-user-service:** Port `8089`
-* **bookmyshow-movie-service:** Port `8088`
-* **bookmyshow-theatre-service:** Port `8087`
-* **bookmyshow-show-service:** Port `8086`
-* **bookmyshow-booking-service:** Port `8085`
-* **bookmyshow-payment-service:** Port `8084`
-* **bookmyshow-eureka-server:** Port `8761`
+Since this is a microservices project, start services on the ports below. All services can be started from the **root project directory** without `cd`-ing into sub-folders:
+
+```bash
+mvn spring-boot:run -pl <module-name>
+```
+
+Start them in this order (Eureka must be first):
+
+| Order | Module | Port |
+|---|---|---|
+| 1 | `bookmyshow-eureka-server` | `8761` |
+| 2 | `bookmyshow-theatre-service` | `8087` |
+| 3 | `bookmyshow-movie-service` | `8088` |
+| 4 | `bookmyshow-user-service` | `8089` |
+| 5 | `bookmyshow-show-service` | `8086` |
+| 6 | `bookmyshow-booking-service` | `8085` |
+| 7 | `bookmyshow-payment-service` | `8084` |
 
 ## How to Test
 
@@ -30,15 +39,19 @@ We currently do not have test classes. Please verify that the expected output ma
 * **Completed Milestones:**
   * Unified Maven parent POM refactoring.
   * Netflix Eureka Service Discovery integration.
-  * Redis distributed seat locking using Redisson & atomic Lua scripting with Resilience4j Circuit Breaker fallback to MySQL.
+  * Redis distributed seat locking using Redisson & atomic Lua scripting with Resilience4j Circuit Breaker fallback to MySQL (`bookmyshow-show-service`).
+  * Redis read-through caching for seat availability (`bookmyshow-show-service`).
+  * Distributed rate limiting via Redisson `RRateLimiter` (Token Bucket, per-user/IP, AOP-driven) (`bookmyshow-booking-service`).
+  * Resilient Feign client wrapping via `ResilientSeatClient` delegate pattern with `@Retry`, `@CircuitBreaker`, and `@TimeLimiter` (`bookmyshow-booking-service`).
+  * Idempotent `bookSeats()` to enable safe retry semantics.
 * **Current Focus:**
-  * Integrating Redisson-based distributed rate limiting (`RRateLimiter`) and Resilience4j Retry / TimeLimiter.
+  * Keycloak / OAuth2 security configuration, inter-service token propagation.
 * **Future Focus:**
-  * Keycloak/OAuth2 configuration, monitoring (Prometheus/Grafana), event-driven architecture (Kafka/RabbitMQ).
+  * Monitoring (Prometheus/Grafana), event-driven architecture (Kafka/RabbitMQ).
 
 ## Files / Folders to Avoid Touching
 
-* None currently.
+* All Service Folder & Files, as I will be writing those by myself. However you can pitch in by helping me plan it.
 
 ## Review / Deployment Rules
 

@@ -1,0 +1,661 @@
+{
+  "info": {
+    "_postman_id": "5f7e7f4d-3f8e-4ce6-a5df-9f1f68f59d01",
+    "name": "SeatFlow Microservices",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{auth_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Booking Service (8085)",
+      "item": [
+        {
+          "name": "Book Ticket",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"showId\": 1,\n  \"seatIds\": [1,2]\n}"
+            },
+            "url": "{{booking_base}}/bookTickets"
+          }
+        },
+        {
+          "name": "Select Seats",
+          "request": {
+            "method": "GET",
+            "url": "{{booking_base}}/selectSeats/1?status=ALL"
+          }
+        },
+        {
+          "name": "Validate Ticket",
+          "request": {
+            "method": "GET",
+            "url": "{{booking_base}}/validateTicket/1"
+          }
+        },
+        {
+          "name": "Cancel Booking",
+          "request": {
+            "method": "DELETE",
+            "url": "{{booking_base}}/deleteBooking?ticketId=1"
+          }
+        },
+        {
+          "name": "Delete Tickets By Show",
+          "request": {
+            "method": "DELETE",
+            "url": "{{booking_base}}/getTickets/1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Movie Service (8088)",
+      "item": [
+        {
+          "name": "Create Movie",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Interstellar\",\n  \"duration\": 169,\n  \"language\": \"English\",\n  \"genre\": [\"Sci-Fi\"]\n}"
+            },
+            "url": "{{movie_base}}/createMovie"
+          }
+        },
+        {
+          "name": "Get All Movies",
+          "request": {
+            "method": "GET",
+            "url": "{{movie_base}}/getAllMovies?page=0&size=10"
+          }
+        },
+        {
+          "name": "Get Movie",
+          "request": {
+            "method": "GET",
+            "url": "{{movie_base}}/getMovie/1"
+          }
+        },
+        {
+          "name": "Update Movie",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Interstellar Updated\"\n}"
+            },
+            "url": "{{movie_base}}/updateMovie/1"
+          }
+        },
+        {
+          "name": "Delete Movie",
+          "request": {
+            "method": "DELETE",
+            "url": "{{movie_base}}/deleteMovie/1"
+          }
+        },
+        {
+          "name": "Create Person",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Nolan\",\n  \"age\": 53\n}"
+            },
+            "url": "{{movie_base}}/createPerson"
+          }
+        },
+        {
+          "name": "Get All Persons",
+          "request": {
+            "method": "GET",
+            "url": "{{movie_base}}/getAllPersons?page=0&size=10"
+          }
+        },
+        {
+          "name": "Get Person",
+          "request": {
+            "method": "GET",
+            "url": "{{movie_base}}/getPerson/1"
+          }
+        },
+        {
+          "name": "Update Person",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Christopher Nolan\"\n}"
+            },
+            "url": "{{movie_base}}/updatePerson/1"
+          }
+        },
+        {
+          "name": "Delete Person",
+          "request": {
+            "method": "DELETE",
+            "url": "{{movie_base}}/deletePerson/1"
+          }
+        },
+        {
+          "name": "Update Person Movies",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"movieIds\": [1]\n}"
+            },
+            "url": "{{movie_base}}/person/1/movies"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Show Service (8086)",
+      "item": [
+        {
+          "name": "Create Show",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"movieId\": 1,\n  \"screenId\": 1,\n  \"startTime\": \"2026-03-08T18:00:00\",\n  \"endTime\": \"2026-03-08T21:00:00\"\n}"
+            },
+            "url": "{{show_base}}/createShow"
+          }
+        },
+        {
+          "name": "Get All Shows",
+          "request": {
+            "method": "GET",
+            "url": "{{show_base}}/getAllShows?page=0&size=10"
+          }
+        },
+        {
+          "name": "Get Show By Id",
+          "request": {
+            "method": "GET",
+            "url": "{{show_base}}/getShowById?showId=1"
+          }
+        },
+        {
+          "name": "Update Show",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"startTime\": \"2026-03-08T19:00:00\",\n  \"endTime\": \"2026-03-08T22:00:00\"\n}"
+            },
+            "url": "{{show_base}}/updateShow/1"
+          }
+        },
+        {
+          "name": "Delete Show",
+          "request": {
+            "method": "DELETE",
+            "url": "{{show_base}}/deleteShow?showId=1"
+          }
+        },
+        {
+          "name": "Get Show Seats",
+          "request": {
+            "method": "GET",
+            "url": "{{show_base}}/getShowSeats/1?status=ALL"
+          }
+        },
+        {
+          "name": "Resolve Show Seat Ids",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[1,2]"
+            },
+            "url": "{{show_base}}/shows/1/resolve-seat-ids"
+          }
+        },
+        {
+          "name": "Lock Seats",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[1,2]"
+            },
+            "url": "{{show_base}}/lockSeats/300"
+          }
+        },
+        {
+          "name": "Book Seats",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[1,2]"
+            },
+            "url": "{{show_base}}/bookSeats/1"
+          }
+        },
+        {
+          "name": "Unlock Seats",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[1,2]"
+            },
+            "url": "{{show_base}}/unlockSeats/1"
+          }
+        },
+        {
+          "name": "Cancel Seats",
+          "request": {
+            "method": "DELETE",
+            "url": "{{show_base}}/cancelSeats/1"
+          }
+        },
+        {
+          "name": "Get Show Seats By Ticket",
+          "request": {
+            "method": "GET",
+            "url": "{{show_base}}/getShowSeatsByTicket/1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Theatre Service (8087)",
+      "item": [
+        {
+          "name": "Create Theatre",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PVR Downtown\",\n  \"address\": {\n    \"city\": \"Chennai\",\n    \"state\": \"TN\"\n  }\n}"
+            },
+            "url": "{{theatre_base}}/createTheatre"
+          }
+        },
+        {
+          "name": "Get All Theatres",
+          "request": {
+            "method": "GET",
+            "url": "{{theatre_base}}/getAllTheatres"
+          }
+        },
+        {
+          "name": "Get Theatre",
+          "request": {
+            "method": "GET",
+            "url": "{{theatre_base}}/getTheatre/1"
+          }
+        },
+        {
+          "name": "Update Theatre",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"PVR Updated\"\n}"
+            },
+            "url": "{{theatre_base}}/updateTheatre/1"
+          }
+        },
+        {
+          "name": "Delete Theatre",
+          "request": {
+            "method": "DELETE",
+            "url": "{{theatre_base}}/deleteTheatre?theatreId=1"
+          }
+        },
+        {
+          "name": "Create Screen",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"screenName\": \"Screen 1\",\n  \"theatreId\": 1,\n  \"capacity\": 120,\n  \"numberOfRows\": 12\n}"
+            },
+            "url": "{{theatre_base}}/createScreen"
+          }
+        },
+        {
+          "name": "Get Screen",
+          "request": {
+            "method": "GET",
+            "url": "{{theatre_base}}/getScreen?screenId=1"
+          }
+        },
+        {
+          "name": "Get Screens By Theatre",
+          "request": {
+            "method": "GET",
+            "url": "{{theatre_base}}/getScreensByTheatre/1"
+          }
+        },
+        {
+          "name": "Update Screen",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"screenName\": \"Screen A\"\n}"
+            },
+            "url": "{{theatre_base}}/updateScreen/1"
+          }
+        },
+        {
+          "name": "Delete Screen",
+          "request": {
+            "method": "DELETE",
+            "url": "{{theatre_base}}/deleteScreen?screenId=1"
+          }
+        },
+        {
+          "name": "Create Seats",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"screenId\": 1,\n  \"rows\": 10,\n  \"seatsPerRow\": 12\n}"
+            },
+            "url": "{{theatre_base}}/createSeats"
+          }
+        },
+        {
+          "name": "Get Seats (bulk)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "[1,2,3]"
+            },
+            "url": "{{theatre_base}}/getSeats"
+          }
+        },
+        {
+          "name": "Get Seat",
+          "request": {
+            "method": "GET",
+            "url": "{{theatre_base}}/getSeat/1"
+          }
+        },
+        {
+          "name": "Get Seats By Screen",
+          "request": {
+            "method": "GET",
+            "url": "{{theatre_base}}/getSeatsByScreen?screenId=1"
+          }
+        },
+        {
+          "name": "Update Seat",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 250\n}"
+            },
+            "url": "{{theatre_base}}/updateSeat/1"
+          }
+        },
+        {
+          "name": "Delete Seat",
+          "request": {
+            "method": "DELETE",
+            "url": "{{theatre_base}}/deleteSeat/1"
+          }
+        }
+      ]
+    },
+    {
+      "name": "User Service (8089)",
+      "item": [
+        {
+          "name": "Create User",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userName\": \"devad\",\n  \"email\": \"devad@example.com\",\n  \"phone\": \"9999999999\",\n  \"password\": \"password\"\n}"
+            },
+            "url": "{{user_base}}/createUser"
+          }
+        },
+        {
+          "name": "Get User Id By Email",
+          "request": {
+            "method": "GET",
+            "url": "{{user_base}}/getUser?email=devad@example.com"
+          }
+        },
+        {
+          "name": "Delete User",
+          "request": {
+            "method": "DELETE",
+            "url": "{{user_base}}/deleteUser?email=devad@example.com"
+          }
+        },
+        {
+          "name": "Sync Me",
+          "request": {
+            "method": "GET",
+            "url": "{{user_base}}/me"
+          }
+        }
+      ]
+    },
+    {
+      "name": "Payment Service (8084)",
+      "item": [
+        {
+          "name": "Create Payment Intent",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ticketId\": 1,\n  \"amount\": 450.00,\n  \"currency\": \"INR\"\n}"
+            },
+            "url": "{{payment_base}}/payments/intent"
+          }
+        },
+        {
+          "name": "Payment Return",
+          "request": {
+            "method": "GET",
+            "url": "{{payment_base}}/payments/return"
+          }
+        },
+        {
+          "name": "Webhook (Manual Test)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Stripe-Signature",
+                "value": "test-signature"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": "{{payment_base}}/payments/webhook"
+          }
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "auth_token",
+      "value": ""
+    },
+    {
+      "key": "booking_base",
+      "value": "http://localhost:8085"
+    },
+    {
+      "key": "movie_base",
+      "value": "http://localhost:8088"
+    },
+    {
+      "key": "show_base",
+      "value": "http://localhost:8086"
+    },
+    {
+      "key": "theatre_base",
+      "value": "http://localhost:8087"
+    },
+    {
+      "key": "user_base",
+      "value": "http://localhost:8089"
+    },
+    {
+      "key": "payment_base",
+      "value": "http://localhost:8084"
+    }
+  ]
+}
+

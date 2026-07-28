@@ -47,7 +47,7 @@ public class MovieService {
         return movies.stream().map(
                 movie -> {
                     MovieDTO dto = modelMapper.map(movie, MovieDTO.class);
-                    dto.setGenres(movie.getGenres().stream().map(Genre::getName).toList());
+                    dto.setGenres(movie.getGenres() != null ? movie.getGenres().stream().map(Genre::getName).toList() : List.of());
                     return dto;
                 }
         ).toList();
@@ -59,17 +59,19 @@ public class MovieService {
                   .orElseThrow(() -> new MovieNotFoundException("Movie Not found, Please check Movie Id: " + id));
 
           MovieResponseDTO response = modelMapper.map(movie, MovieResponseDTO.class);
-          response.setGenres(movie.getGenres().stream().map(Genre::getName).toList());
-          response.setCast(movie.getCast().stream().map(
+          response.setGenres(movie.getGenres() != null ? movie.getGenres().stream().map(Genre::getName).toList() : List.of());
+          response.setCast(movie.getCast() != null ? movie.getCast().stream().map(
                   movieCast -> {
                       MovieCastDTO dto = new MovieCastDTO();
                       Person person = movieCast.getPerson();
-                      PersonDTO personDTO = new PersonDTO();
-                      personDTO.setPersonId(person.getPersonId());
-                      dto.setPerson(personDTO);
+                      if (person != null) {
+                          PersonDTO personDTO = new PersonDTO();
+                          personDTO.setPersonId(person.getPersonId());
+                          dto.setPerson(personDTO);
+                      }
                       return dto;
                   }
-          ).toList());
+          ).toList() : List.of());
 
           return response;
     }
