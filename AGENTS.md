@@ -1,32 +1,45 @@
-how to run/build:
--Since this is a microservices run these services on the mentioned port and please check if these ports are used anywhere and kill the existing if possible(if they aren't vital procces)
-    bookmyshow-booking-service (port 8085)
-    bookmyshow-payment-service (port 8084)
-    bookmyshow-show-service (port 8086)
-    bookmyshow-theatre-service (port 8087)
-    bookmyshow-movie-service (port 8088)
-    bookmyshow-user-service (port 8089)
+# Developer & Agent Guidelines
 
-how to test:
--I don't have test classes currently but please verify the expected output is in accordance with the schema/DTO's mentioned and no exceptions thrown out.
+## How to Run / Build
 
-coding conventions:
--leave a line at starting and ending of each method
--Write comments only if necessary for process like 
-    calling other service, method(not for crud operations)
-    tricky implementation
-    optimizations/workarounds
+Since this is a microservices project, run these services on the mentioned ports. Please check if these ports are already in use and terminate existing non-vital processes if needed:
+* **bookmyshow-user-service:** Port `8089`
+* **bookmyshow-movie-service:** Port `8088`
+* **bookmyshow-theatre-service:** Port `8087`
+* **bookmyshow-show-service:** Port `8086`
+* **bookmyshow-booking-service:** Port `8085`
+* **bookmyshow-payment-service:** Port `8084`
+* **bookmyshow-eureka-server:** Port `8761`
 
-architecture notes
--This is a project focused on microservices that is both resume worthy and interview ready
--Don't break the services and explain every change you make in a interview depth level for deeper understanding + mention the concepts used from an interview point of view
--Completed integration of Netflix Eureka Service Discovery.
--Completed multi-module Maven project refactoring (improving parent POM structure and dependencies).
--Currently working on integrating, completing, and upgrading Redis as a cache/distributed lock for the seat locking mechanism to replace slower service-layer and database-layer locks with production-ready distributed locking.
--Plans to integrate resilience (Retry) and rate limiting.
+## How to Test
 
-files or folders to avoid touching
--currently none
+We currently do not have test classes. Please verify that the expected output matches the specified schemas/DTOs and that no exceptions are thrown.
 
-review/deployment rules
--push evey git change to this repo:https://github.com/devadharshan-s/SeatFlow
+## Coding Conventions
+
+* **Spacing:** Leave one blank line at the start and end of every method body.
+* **Comments:** Write comments only when necessary. For example:
+  * Calling other microservices/external APIs.
+  * Complex or tricky logic implementations.
+  * Crucial optimizations or workarounds.
+  * Avoid commenting on standard CRUD operations.
+
+## Architecture Notes
+
+* **Resume & Interview Ready:** This project highlights microservice architecture best practices. Explain all modifications in interview-level depth and highlight key patterns.
+* **Completed Milestones:**
+  * Unified Maven parent POM refactoring.
+  * Netflix Eureka Service Discovery integration.
+  * Redis distributed seat locking using Redisson & atomic Lua scripting with Resilience4j Circuit Breaker fallback to MySQL.
+* **Current Focus:**
+  * Integrating Redisson-based distributed rate limiting (`RRateLimiter`) and Resilience4j Retry / TimeLimiter.
+* **Future Focus:**
+  * Keycloak/OAuth2 configuration, monitoring (Prometheus/Grafana), event-driven architecture (Kafka/RabbitMQ).
+
+## Files / Folders to Avoid Touching
+
+* None currently.
+
+## Review / Deployment Rules
+
+* Push every Git change to the repository: https://github.com/devadharshan-s/SeatFlow

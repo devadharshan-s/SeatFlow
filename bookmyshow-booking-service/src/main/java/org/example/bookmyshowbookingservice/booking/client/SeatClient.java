@@ -8,6 +8,7 @@ import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 import java.util.List;
 
@@ -28,4 +29,16 @@ public interface SeatClient {
 
     @DeleteMapping("/cancelSeats/{ticketId}")
     ApiResponse<List<Long>> cancelSeats(@PathVariable("ticketId") Long ticketId);
+
+    @PostMapping("/show-seat/holdSeats")
+    ApiResponse<List<Long>> holdSeats(
+            @RequestParam("ticketId") Long ticketId,
+            @RequestParam("holdSeconds") int holdSeconds,
+            @RequestBody List<Long> seatIds);
+
+    @PostMapping("/show-seat/releaseHold")
+    ApiResponse<Boolean> releaseHold(@RequestParam("ticketId") Long ticketId);
+
+    @PostMapping("/show-seat/confirmHold")
+    ApiResponse<List<Long>> confirmHold(@RequestParam("ticketId") Long ticketId);
 }

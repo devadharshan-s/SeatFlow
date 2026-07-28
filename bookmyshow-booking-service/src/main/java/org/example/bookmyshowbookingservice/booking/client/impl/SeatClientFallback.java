@@ -70,4 +70,40 @@ public class SeatClientFallback implements SeatClient {
         );
 
     }
+
+    @Override
+    public ApiResponse<List<Long>> holdSeats(Long ticketId, int holdSeconds, List<Long> seatIds) {
+
+        return new ApiResponse<>(
+                503,
+                "Fallback: Unable to hold seats at this time.",
+                Collections.emptyList(),
+                LocalDateTime.now()
+        );
+
+    }
+
+    @Override
+    public ApiResponse<Boolean> releaseHold(Long ticketId) {
+
+        return new ApiResponse<>(
+                503,
+                "Fallback: Unable to release seat hold at this time.",
+                false,
+                LocalDateTime.now()
+        );
+
+    }
+
+    @Override
+    public ApiResponse<List<Long>> confirmHold(Long ticketId) {
+
+        return new ApiResponse<>(
+                503,
+                "Fallback: Unable to confirm seat hold at this time.",
+                Collections.emptyList(),
+                LocalDateTime.now()
+        );
+
+    }
 }

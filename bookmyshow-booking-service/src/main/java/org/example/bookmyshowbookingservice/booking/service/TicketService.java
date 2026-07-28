@@ -100,12 +100,6 @@ public class TicketService {
             throw new BookingFailedException("The requested seats are not available, Please try other seats!");
         }
 
-        ApiResponse<List<Long>> lockedSeatResponse = seatClient.lockSeats(300, showSeatIds);
-        if (lockedSeatResponse == null || lockedSeatResponse.getData() == null) {
-            throw new BookingFailedException("Can't lock seats, check lock service!");
-        }
-        List<Long> lockedSeats = lockedSeatResponse.getData();
-
         ApiResponse<Long> userResponse = userClient.getUserByEmail(getJwt().getClaim("email").toString());
         if (userResponse == null || userResponse.getData() == null) {
             throw new BookingFailedException("User lookup failed");
@@ -118,21 +112,33 @@ public class TicketService {
 
         ticket = ticketRepostiory.save(ticket);
 
-        ApiResponse<List<Long>> bookedSeatResponse = seatClient.bookSeats(ticket.getTicketId(), lockedSeats);
+        ApiResponse<List<Long>> heldSeatResponse = seatClient.holdSeats(ticket.getTicketId(), 300, showSeatIds);
+        if (heldSeatResponse == null || heldSeatResponse.getData() == null || heldSeatResponse.getData().isEmpty()) {
+            throw new BookingFailedException("Can't hold seats, check hold service!");
+        }
+        List<Long> heldSeats = heldSeatResponse.getData();
+
+        ApiResponse<List<Long>> bookedSeatResponse = seatClient.bookSeats(ticket.getTicketId(), heldSeats);
         if (bookedSeatResponse == null || bookedSeatResponse.getData() == null) {
-            throw new BookingFailedException("Seat booking failed for seatIds: " + lockedSeats);
+            try {
+                seatClient.releaseHold(ticket.getTicketId());
+            } catch (Exception ex) {
+                log.error("Failed to release Redis hold on booking failure", ex);
+            }
+            throw new BookingFailedException("Seat booking failed for seatIds: " + heldSeats);
         }
         List<Long> bookedSeatIds = bookedSeatResponse.getData();
 
         ticket.setShowSeatIds(bookedSeatIds);
         ticketRepostiory.save(ticket);
 
-        ApiResponse<Boolean> unlockResponse = seatClient.unlockSeats(ticket.getTicketId(), bookedSeatIds);
-        if (unlockResponse == null || unlockResponse.getData() == null || !unlockResponse.getData()) {
-            throw new BookingFailedException("Seat unlock failed for ticketId: " + ticket.getTicketId());
+        ApiResponse<List<Long>> confirmResponse = seatClient.confirmHold(ticket.getTicketId());
+        if (confirmResponse == null || confirmResponse.getData() == null) {
+            log.warn("Redis hold confirmation returned null/empty response for ticketId: {}", ticket.getTicketId());
         }
 
         return modelMapper.map(ticket, TicketDTO.class);
+
     }
 
     @Transactional

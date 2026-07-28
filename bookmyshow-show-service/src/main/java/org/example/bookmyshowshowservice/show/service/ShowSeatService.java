@@ -2,6 +2,7 @@ package org.example.bookmyshowshowservice.show.service;
 
 import org.example.bookmyshowshowservice.common.dto.ApiResponse;
 import org.example.bookmyshowshowservice.common.exception.TicketNotFoundException;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.example.bookmyshowshowservice.show.api.dto.SeatAvailabilityResponse;
 import org.example.bookmyshowshowservice.show.client.SeatClient;
 import org.example.bookmyshowshowservice.show.client.TicketClient;
@@ -16,6 +17,10 @@ import org.example.bookmyshowshowservice.show.client.dto.SeatResponseDTO;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
 import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
@@ -29,13 +34,45 @@ import java.util.stream.Collectors;
 @Slf4j
 public class ShowSeatService {
 
-    private final ShowSeatRepository showSeatRepository;
+    @Autowired
+    @Lazy
+    private ShowSeatService self;
+
+        private final ShowSeatRepository showSeatRepository;
     private final ShowsRepository showsRepository;
     private final SeatClient seatClient;
     private final TicketClient ticketClient;
+    private final SeatHoldService seatHoldService;
+    private final org.springframework.cache.CacheManager cacheManager;
+    private final LockService lockService;
 
+    @Cacheable(value = "staticSeatDetails", key = "#showId")
+    public Map<Long, SeatResponseDTO> getStaticSeatDetails(Long showId, List<Long> seatIds) {
+
+        ApiResponse<Map<Long, SeatResponseDTO>> seatsResponse = seatClient.getSeats(seatIds);
+        return (seatsResponse != null && seatsResponse.getData() != null) ? seatsResponse.getData() : Map.of();
+
+    }
+
+    @CacheEvict(value = "staticSeatDetails", key = "#showId")
+    public void evictStaticSeatDetails(Long showId) {
+
+        log.info("Evicted static seat details cache for showId: {}", showId);
+
+    }
+
+    public Long getShowIdForSeat(Long showSeatId) {
+
+        ShowSeat seat = showSeatRepository.findById(showSeatId)
+                .orElseThrow(() -> new ShowSeatNotFoundException("Seat not found"));
+        return seat.getShow().getShowId();
+
+    }
+
+    @Cacheable(value = "showSeatsCache", key = "#showId + '-' + (#status != null ? #status.toUpperCase() : 'ALL')")
     @Transactional
     public List<SeatAvailabilityResponse> getShowSeats(Long showId, String status) {
+
         showsRepository.findByShowId(showId)
                 .orElseThrow(() -> new ShowNotFoundException("Show not found"));
 
@@ -47,8 +84,8 @@ public class ShowSeatService {
         Map<Long, ShowSeat> showSeatsMap = showSeats.stream()
                 .collect(Collectors.toMap(ShowSeat::getSeatId, seat -> seat));
 
-        ApiResponse<Map<Long, SeatResponseDTO>> seatsResponse = seatClient.getSeats(showSeats.stream().map(ShowSeat::getSeatId).toList());
-        Map<Long, SeatResponseDTO> seatDetails = (seatsResponse != null && seatsResponse.getData() != null) ? seatsResponse.getData() : Map.of();
+        List<Long> seatIds = showSeats.stream().map(ShowSeat::getSeatId).toList();
+        Map<Long, SeatResponseDTO> seatDetails = self.getStaticSeatDetails(showId, seatIds);
 
         List<SeatAvailabilityResponse> response = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();
@@ -60,11 +97,15 @@ public class ShowSeatService {
                 return;
             }
 
+            LocalDateTime holdExpiry = seatHoldService.getHoldExpiry(showSeat.getShowSeatId());
             String actualStatus;
             if (Boolean.TRUE.equals(showSeat.getIsBooked())) {
                 actualStatus = "BOOKED";
+            } else if (holdExpiry != null) {
+                actualStatus = "LOCKED";
             } else if (showSeat.getLockedUntil() != null && showSeat.getLockedUntil().isAfter(now)) {
                 actualStatus = "LOCKED";
+                holdExpiry = showSeat.getLockedUntil();
             } else {
                 actualStatus = "AVAILABLE";
             }
@@ -73,20 +114,21 @@ public class ShowSeatService {
                 return;
             }
 
-            SeatAvailabilityResponse seats = new SeatAvailabilityResponse();
-            seats.setSeatId(seatId);
-            seats.setSeatNumber(seat.getSeatNumber());
-            seats.setRowNumber(String.valueOf(seat.getRowNumber()));
-            seats.setPrice(seat.getPrice());
-            seats.setCategory(seat.getCategory());
-            seats.setLockedUntil(showSeat.getLockedUntil());
-            seats.setBooked(showSeat.getIsBooked());
-            seats.setStatus(actualStatus);
+            SeatAvailabilityResponse responseSeat = new SeatAvailabilityResponse();
+            responseSeat.setSeatId(seatId);
+            responseSeat.setSeatNumber(seat.getSeatNumber());
+            responseSeat.setRowNumber(String.valueOf(seat.getRowNumber()));
+            responseSeat.setPrice(seat.getPrice());
+            responseSeat.setCategory(seat.getCategory());
+            responseSeat.setLockedUntil(holdExpiry);
+            responseSeat.setBooked(showSeat.getIsBooked());
+            responseSeat.setStatus(actualStatus);
 
-            response.add(seats);
+            response.add(responseSeat);
         });
 
         return response;
+
     }
 
     @Transactional
@@ -121,6 +163,8 @@ public class ShowSeatService {
             throw new SeatOperationException("No show seats found to book");
         }
 
+        Long showId = showSeats.get(0).getShow().getShowId();
+
         showSeats.forEach(seat -> {
             seat.setIsBooked(Boolean.TRUE);
             seat.setTicketId(ticketId);
@@ -129,6 +173,7 @@ public class ShowSeatService {
         showSeatRepository.saveAll(showSeats);
 
         log.info("Seats booked successfully");
+        evictShowSeatsCache(showId);
 
         return showSeats.stream().map(ShowSeat::getShowSeatId).toList();
     }
@@ -142,6 +187,8 @@ public class ShowSeatService {
             throw new SeatOperationException("No show seats found to unlock");
         }
 
+        Long showId = showSeats.get(0).getShow().getShowId();
+
         for (ShowSeat showSeat : showSeats) {
             if (!ticketId.equals(showSeat.getTicketId())) {
                 throw new SeatOperationException("Seat " + showSeat.getShowSeatId() + " is not associated with ticketId: " + ticketId);
@@ -150,6 +197,7 @@ public class ShowSeatService {
         }
 
         showSeatRepository.saveAll(showSeats);
+        evictShowSeatsCache(showId);
         return Boolean.TRUE;
     }
 
@@ -161,6 +209,8 @@ public class ShowSeatService {
             throw new SeatNotFoundException("No seats found for ticketId: " + ticketId);
         }
 
+        Long showId = bookedSeats.get(0).getShow().getShowId();
+
         bookedSeats.forEach(seat -> {
             seat.setIsBooked(Boolean.FALSE);
             seat.setTicketId(null);
@@ -169,8 +219,57 @@ public class ShowSeatService {
         showSeatRepository.saveAll(bookedSeats);
 
         log.info("Seats cancelled successfully");
+        evictShowSeatsCache(showId);
 
         return bookedSeats.stream().map(ShowSeat::getShowSeatId).toList();
+    }
+
+    public void evictShowSeatsCache(Long showId) {
+        if (showId == null) return;
+        org.springframework.cache.Cache cache = cacheManager.getCache("showSeatsCache");
+        if (cache != null) {
+            cache.evict(showId + "-ALL");
+            cache.evict(showId + "-AVAILABLE");
+            cache.evict(showId + "-BOOKED");
+            cache.evict(showId + "-LOCKED");
+            log.info("Evicted showSeatsCache for showId: {}", showId);
+        }
+    }
+
+    @CircuitBreaker(name = "redisHold", fallbackMethod = "holdSeatsFallback")
+    public List<Long> holdSeats(Long ticketId, List<Long> showSeatIds, int holdSeconds) {
+        return seatHoldService.holdSeats(ticketId, showSeatIds, holdSeconds);
+    }
+
+    public List<Long> holdSeatsFallback(Long ticketId, List<Long> showSeatIds, int holdSeconds, Throwable t) {
+        log.error("Redis holdSeats failed, circuit breaker active. Falling back to MySQL LockService. Error: {}", t.getMessage());
+        return lockService.lockSeats(showSeatIds, holdSeconds);
+    }
+
+    @CircuitBreaker(name = "redisRelease", fallbackMethod = "releaseHoldFallback")
+    public Boolean releaseHold(Long ticketId) {
+        return seatHoldService.releaseHold(ticketId);
+    }
+
+    public Boolean releaseHoldFallback(Long ticketId, Throwable t) {
+        log.error("Redis releaseHold failed for ticketId: {}, ignoring since MySQL locks expire automatically. Error: {}", ticketId, t.getMessage());
+        return true;
+    }
+
+    @CircuitBreaker(name = "redisConfirm", fallbackMethod = "confirmHoldFallback")
+    public List<Long> confirmHold(Long ticketId) {
+        return seatHoldService.confirmHold(ticketId);
+    }
+
+    public List<Long> confirmHoldFallback(Long ticketId, Throwable t) {
+        log.error("Redis confirmHold failed for ticketId: {}, falling back to database query. Error: {}", ticketId, t.getMessage());
+        try {
+            List<Long> seatIds = getShowSeatsByTicketId(ticketId);
+            unlockSeats(ticketId, seatIds);
+            return seatIds;
+        } catch (Exception e) {
+            return List.of();
+        }
     }
 
     private void validateTicketId(Long ticketId) {

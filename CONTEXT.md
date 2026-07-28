@@ -1,24 +1,17 @@
 # Context
 
-## Goal
-Integrate and spin up Redis as a cache for the seat locking mechanism to replace slow service-layer and database-layer locks.
+## Completed Achievements
+- Completed integration of Netflix Eureka Service Discovery.
+- Completed Maven multi-module POM refactoring (unified parent configuration, shared properties, and dependency management).
 
-## Next Focus
-- Configure Redis connection properties in `bookmyshow-show-service`.
-- Implement distributed locking mechanism using Redis (SETNX or Redisson client).
-- Ensure thread-safe seat selection operations in the code.
-- Establish graceful TTL seat release policies.
+## Goal & Next Focus
+- Integrate, wire up, and upgrade Redis-based distributed seat locking mechanism (`SeatHoldService`) to replace MySQL-based database-layer locks (`LockService`).
+- Upgrade Redis locking mechanism to Redisson/Lua scripts for atomic multi-seat operations.
+- Introduce resilience / fallback mechanisms (Resilience4j) for Redis.
+- Implement Redis caching for heavy reads (show/seat availability).
 
 ## Runtime Notes
-- Verified `bookmyshow-theatre-service` starts successfully on port `8087` when `DB_PASSWORD=@Shawn123`.
-- The failure seen during startup was not application logic; it was MySQL authentication:
-  - `Access denied for user 'root'@'localhost' (using password: YES)`
-- Maven resolution in the sandbox was also misleading because the default local repo was `C:\Users\CodexSandboxOffline\.m2`, while the populated cache is under `C:\Users\devad\.m2\repository`.
-- The project is pinned to Spring Boot `3.5.6`, which matches the cached local Maven artifacts and allows offline startup.
+
 
 ## Last Files Touched
-- src/main/java/com/example/bookmyshow/movie/repository/MovieRepository.java
-- src/main/java/com/example/bookmyshow/movie/repository/GenreRepository.java
-- src/main/java/com/example/bookmyshow/movie/service/GenreService.java
-- src/main/java/com/example/bookmyshow/movie/exception/GenreOperationException.java
-- src/main/java/com/example/bookmyshow/GlobalExceptionHandler.java
+
