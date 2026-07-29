@@ -7,8 +7,13 @@ import java.util.List;
 @Data
 public class TicketDTO {
 
+    private Long ticketId;
     private long showId;
     private List<Long> seatIds;
+    private List<Long> showSeatIds;
+    private Long userId;
+    private double amountPaid;
+
 }
 
 

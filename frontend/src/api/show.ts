@@ -41,7 +41,7 @@ export const getShowSeats = async (showId: string, status: string = 'ALL'): Prom
 
 export const lockSeats = async (showId: string, seatIds: string[], seconds: number): Promise<any> => {
   try {
-    const response = await showApi.post(`/show-seat/lockSeats/${seconds}`, { showId, seatIds });
+    const response = await showApi.post(`/show-seat/lockSeats/${seconds}`, seatIds.map(Number));
     return response.data;
   } catch (error) {
     console.error(`Error locking seats for show ID ${showId}:`, error);
@@ -49,9 +49,9 @@ export const lockSeats = async (showId: string, seatIds: string[], seconds: numb
   }
 };
 
-export const unlockSeats = async (ticketId: string): Promise<any> => {
+export const unlockSeats = async (ticketId: string, seatIds: number[]): Promise<any> => {
   try {
-    const response = await showApi.post(`/show-seat/unlockSeats/${ticketId}`);
+    const response = await showApi.post(`/show-seat/unlockSeats/${ticketId}`, seatIds);
     return response.data;
   } catch (error) {
     console.error(`Error unlocking seats for ticket ID ${ticketId}:`, error);

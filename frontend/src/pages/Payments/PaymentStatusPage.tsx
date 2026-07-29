@@ -100,9 +100,9 @@ const PaymentStatusPage: React.FC = () => {
     }, []);
 
     const handleRelease = async () => {
-        if (bookingResult?.ticketId) {
+        if (bookingResult?.ticketId && bookingResult?.showSeatIds) {
             try {
-                await unlockSeats(String(bookingResult.ticketId));
+                await unlockSeats(String(bookingResult.ticketId), bookingResult.showSeatIds);
             } catch {
                 /* best-effort */
             }
