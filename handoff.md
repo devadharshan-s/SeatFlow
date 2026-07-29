@@ -48,34 +48,67 @@ This document summarizes the changes made to resolve frontend-to-backend connect
   * Corrected `spring.data.redis.host` in both `application.properties` files.
   * Explicitly configured `spring.cache.type=redis` in [application.properties](file:///c:/Users/devad/IdeaProjects/bookmyshow-microservices/bookmyshow-show-service/src/main/resources/application.properties) to force the Spring Boot `RedisCacheManager` to run, enabling dynamic cache creation.
 
+### 🐳 8. Full Architecture Dockerization (`docker-integration-setup` branch)
+* **Goal:** Wrap the entire microservices architecture in Docker to start everything (databases, IAM, microservices) with a single command and support hot-reloading on host source code changes.
+* **Completed Configurations:**
+  * **Unified Compose File:** Added [docker-compose.yml](file:///c:/Users/devad/IdeaProjects/bookmyshow-microservices/docker-compose.yml) linking MySQL, Keycloak, and all 7 services.
+  * **BuildKit Collision Fix:** Created 7 isolated Dockerfiles under [docker/Dockerfiles/](file:///c:/Users/devad/IdeaProjects/bookmyshow-microservices/docker/Dockerfiles/) to prevent BuildKit build race conditions.
+  * **Conflict-Free Database:** Mapped Docker MySQL to host port `3307` so you don't need to stop your host's local MySQL instance.
+  * **Auto-Data Import (UTF-8 resolved):** Exported host databases into [backup.sql](file:///c:/Users/devad/IdeaProjects/bookmyshow-microservices/docker/mysql/backup.sql) saved as UTF-8 (avoiding PowerShell's UTF-16 BOM null-byte importer errors) and mapped it to mount on startup.
+  * **Keycloak Auto-Realm:** Set up [realm-export.json](file:///c:/Users/devad/IdeaProjects/bookmyshow-microservices/docker/keycloak/realm-export.json) with predefined `bookmyshow-admin` permissions to allow dynamic registration.
+
 ---
 
 ## 🚀 How to Resume Testing in the Morning
 
-Follow these steps to spin up and verify the entire integration flow:
+Choose your preferred setup below to spin up and verify the entire integration flow:
 
-### Step 1: Checkout the Test Branch
-```bash
-git checkout frontend-integration-test
-```
+### Option A: Clean Docker Setup (Recommended)
+This runs the entire backend infrastructure and microservices with automatic watch/reload on save:
 
-### Step 2: Start Eureka & Microservices (In Order)
-Launch each service from the project root using Maven:
-1. **Eureka Server (Port `8761`):** `mvn spring-boot:run -pl bookmyshow-eureka-server`
-2. **Theatre Service (Port `8087`):** `mvn spring-boot:run -pl bookmyshow-theatre-service`
-3. **Movie Service (Port `8088`):** `mvn spring-boot:run -pl bookmyshow-movie-service`
-4. **User Service (Port `8089`):** `mvn spring-boot:run -pl bookmyshow-user-service`
-5. **Show Service (Port `8086`):** `mvn spring-boot:run -pl bookmyshow-show-service`
-6. **Booking Service (Port `8085`):** `mvn spring-boot:run -pl bookmyshow-booking-service`
-7. **Payment Service (Port `8084`):** `mvn spring-boot:run -pl bookmyshow-payment-service`
+1. **Checkout the Docker branch:**
+   ```bash
+   git checkout docker-integration-setup
+   ```
+2. **Start the Docker Compose stack:**
+   ```bash
+   docker compose up -d
+   ```
+3. **Enable hot-reloading (in a separate terminal):**
+   ```bash
+   docker compose watch
+   ```
+4. **Run Vite frontend (on host):**
+   ```bash
+   cd frontend
+   npm run dev
+   ```
 
-*(Note: If a process was terminated but port remains occupied, kill the orphaned java process using `Stop-Process -Id <PID> -Force` in PowerShell).*
+---
 
-### Step 3: Start Vite Dev Server
-```bash
-cd frontend
-npm run dev -- --force
-```
+### Option B: Local Maven Run (No Docker)
+If you prefer running services directly on the host using your local Maven compiler:
+
+1. **Checkout the Test branch:**
+   ```bash
+   git checkout frontend-integration-test
+   ```
+2. **Start Eureka & Microservices (In Order):**
+   * Eureka Server (Port `8761`): `mvn spring-boot:run -pl bookmyshow-eureka-server`
+   * Theatre Service (Port `8087`): `mvn spring-boot:run -pl bookmyshow-theatre-service`
+   * Movie Service (Port `8088`): `mvn spring-boot:run -pl bookmyshow-movie-service`
+   * User Service (Port `8089`): `mvn spring-boot:run -pl bookmyshow-user-service`
+   * Show Service (Port `8086`): `mvn spring-boot:run -pl bookmyshow-show-service`
+   * Booking Service (Port `8085`): `mvn spring-boot:run -pl bookmyshow-booking-service`
+   * Payment Service (Port `8084`): `mvn spring-boot:run -pl bookmyshow-payment-service`
+
+3. **Start Vite Dev Server:**
+   ```bash
+   cd frontend
+   npm run dev -- --force
+   ```
+
+---
 
 ### Step 4: Open Browser
 Navigate to `http://localhost:5173/movies` (or port `5174` depending on local port occupancy). 
