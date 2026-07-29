@@ -28,19 +28,12 @@ services:
       KC_BOOTSTRAP_ADMIN_PASSWORD: admin
     volumes:
       - ./docker/keycloak/realm-export.json:/opt/keycloak/data/import/realm-export.json
-    healthcheck:
-      test: ["CMD-SHELL", "exec 3<>/dev/tcp/127.0.0.1/8080 && echo -e \"GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\n\\r\" >&3 && close 3"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
 
   # 1. Netflix Eureka Discovery Server
   eureka-server:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        MODULE_NAME: bookmyshow-eureka-server
+      dockerfile: ./docker/Dockerfiles/Dockerfile.eureka-server
     container_name: seatflow-eureka-server
     ports:
       - "8761:8761"
@@ -64,9 +57,7 @@ services:
   theatre-service:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        MODULE_NAME: bookmyshow-theatre-service
+      dockerfile: ./docker/Dockerfiles/Dockerfile.theatre-service
     container_name: seatflow-theatre-service
     ports:
       - "8087:8087"
@@ -92,9 +83,7 @@ services:
   movie-service:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        MODULE_NAME: bookmyshow-movie-service
+      dockerfile: ./docker/Dockerfiles/Dockerfile.movie-service
     container_name: seatflow-movie-service
     ports:
       - "8088:8088"
@@ -120,9 +109,7 @@ services:
   user-service:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        MODULE_NAME: bookmyshow-user-service
+      dockerfile: ./docker/Dockerfiles/Dockerfile.user-service
     container_name: seatflow-user-service
     ports:
       - "8089:8089"
@@ -142,7 +129,7 @@ services:
       mysql-db:
         condition: service_healthy
       keycloak:
-        condition: service_healthy
+        condition: service_started
       eureka-server:
         condition: service_started
     develop:
@@ -154,9 +141,7 @@ services:
   show-service:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        MODULE_NAME: bookmyshow-show-service
+      dockerfile: ./docker/Dockerfiles/Dockerfile.show-service
     container_name: seatflow-show-service
     ports:
       - "8086:8086"
@@ -183,9 +168,7 @@ services:
   booking-service:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        MODULE_NAME: bookmyshow-booking-service
+      dockerfile: ./docker/Dockerfiles/Dockerfile.booking-service
     container_name: seatflow-booking-service
     ports:
       - "8085:8085"
@@ -212,9 +195,7 @@ services:
   payment-service:
     build:
       context: .
-      dockerfile: Dockerfile
-      args:
-        MODULE_NAME: bookmyshow-payment-service
+      dockerfile: ./docker/Dockerfiles/Dockerfile.payment-service
     container_name: seatflow-payment-service
     ports:
       - "8084:8084"

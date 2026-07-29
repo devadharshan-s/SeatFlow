@@ -1,0 +1,21 @@
+FROM maven:3.9.6-eclipse-temurin-21-alpine AS builder
+WORKDIR /app
+
+# Copy all poms to satisfy multi-module Maven structure
+COPY pom.xml .
+COPY bookmyshow-eureka-server/pom.xml bookmyshow-eureka-server/
+COPY bookmyshow-booking-service/pom.xml bookmyshow-booking-service/
+COPY bookmyshow-payment-service/pom.xml bookmyshow-payment-service/
+COPY bookmyshow-show-service/pom.xml bookmyshow-show-service/
+COPY bookmyshow-theatre-service/pom.xml bookmyshow-theatre-service/
+COPY bookmyshow-movie-service/pom.xml bookmyshow-movie-service/
+COPY bookmyshow-user-service/pom.xml bookmyshow-user-service/
+
+RUN mvn dependency:go-offline -pl bookmyshow-booking-service -am
+COPY bookmyshow-booking-service/src bookmyshow-booking-service/src
+RUN mvn clean package -pl bookmyshow-booking-service -am -DskipTests
+
+FROM eclipse-temurin:21-jre-alpine
+WORKDIR /app
+COPY --from=builder /app/bookmyshow-booking-service/target/*.jar app.jar
+ENTRYPOINT ["java", "-jar", "app.jar"]
