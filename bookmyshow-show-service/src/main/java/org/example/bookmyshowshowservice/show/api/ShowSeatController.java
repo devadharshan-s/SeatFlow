@@ -68,7 +68,14 @@ public class ShowSeatController {
     @PostMapping("/lockSeats/{seconds}")
     public ResponseEntity<ApiResponse<List<Long>>> lockSeats(@RequestBody List<Long> showSeatIds, @PathVariable int seconds) {
         List<Long> response = lockService.lockSeats(showSeatIds, seconds);
-
+        if (response != null && !response.isEmpty()) {
+            try {
+                Long showId = showSeatService.getShowIdForSeat(response.get(0));
+                showSeatService.evictShowSeatsCache(showId);
+            } catch (Exception ex) {
+                log.error("Failed to evict showSeatsCache on lockSeats", ex);
+            }
+        }
         return ResponseEntity.ok(
                 new ApiResponse<>(
                         200,

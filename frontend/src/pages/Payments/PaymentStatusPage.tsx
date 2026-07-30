@@ -66,7 +66,10 @@ const PaymentStatusPage: React.FC = () => {
             };
             setBookingResult(ticketData);
         } catch (err: any) {
-            setErrorMsg(err.response?.data?.message || 'Booking failed. Your seats may have been released.');
+            const detail = err.response?.data?.message
+                ? `${err.response.data.message}${err.response.data.data ? ` (${JSON.stringify(err.response.data.data)})` : ''}`
+                : (err.message || 'Booking failed. Your seats may have been released.');
+            setErrorMsg(detail);
             setStage('booking-error');
             return;
         }
@@ -79,7 +82,7 @@ const PaymentStatusPage: React.FC = () => {
                 amount: ticketData.amountPaid,
                 currency: 'INR',
             });
-            const pd = paymentResponse?.data ?? paymentResponse;
+            const pd: any = (paymentResponse as any)?.data ?? paymentResponse;
             setPaymentResult({
                 paymentId: pd.paymentId,
                 status: pd.status,
@@ -88,7 +91,10 @@ const PaymentStatusPage: React.FC = () => {
             });
             setStage('success');
         } catch (err: any) {
-            setErrorMsg(err.response?.data?.message || 'Payment initiation failed.');
+            const detail = err.response?.data?.message
+                ? `${err.response.data.message}${err.response.data.data ? ` (${JSON.stringify(err.response.data.data)})` : ''}`
+                : (err.message || 'Payment initiation failed.');
+            setErrorMsg(detail);
             setStage('payment-error');
         }
     }, [state, user]);

@@ -10,6 +10,14 @@ const paymentApi = axios.create({
   },
 });
 
+paymentApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('jwt_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export const createPaymentIntent = async (request: CreatePaymentRequest): Promise<PaymentResponse> => {
   try {
     const response = await paymentApi.post('/payment/payments/intent', request);

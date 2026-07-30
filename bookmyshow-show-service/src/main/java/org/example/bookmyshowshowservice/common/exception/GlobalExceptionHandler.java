@@ -31,7 +31,7 @@ public class GlobalExceptionHandler {
         return build(HttpStatus.NOT_FOUND, ex.getMessage());
     }
 
-    @ExceptionHandler({SeatNotAvailableException.class, ShowOperationException.class, SeatOperationException.class})
+    @ExceptionHandler({ SeatNotAvailableException.class, ShowOperationException.class, SeatOperationException.class })
     public ResponseEntity<ApiResponse<Void>> handleConflict(ServiceException ex) {
         return build(HttpStatus.CONFLICT, ex.getMessage());
     }
@@ -55,8 +55,7 @@ public class GlobalExceptionHandler {
                 status.value(),
                 message,
                 null,
-                LocalDateTime.now()
-        );
+                LocalDateTime.now());
         return ResponseEntity.status(status).body(response);
     }
 }

@@ -3,6 +3,7 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { GlobalStyle } from './styles/GlobalStyle';
 import { AuthProvider } from './contexts/AuthContext';
+import ErrorBoundary from './components/common/ErrorBoundary';
 
 import HomePage from './pages/HomePage';
 import LoginPage from './pages/Auth/LoginPage';
@@ -17,24 +18,26 @@ import NotFoundPage from './pages/NotFoundPage';
 function App() {
 
     return (
-        <AuthProvider>
-            <GlobalStyle />
-            <Router>
-                <Routes>
-                    <Route path="/"                     element={<HomePage />} />
-                    <Route path="/login"                element={<LoginPage />} />
-                    <Route path="/register"             element={<RegisterPage />} />
-                    <Route path="/movies"               element={<MovieListPage />} />
-                    {/* Route uses :id to match MovieDetailPage's useParams({ id }) */}
-                    <Route path="/movies/:id"           element={<MovieDetailPage />} />
-                    {/* ShowListPage reads movieId as a query param: /shows?movieId=X */}
-                    <Route path="/shows"                element={<ShowListPage />} />
-                    <Route path="/shows/:showId/book"   element={<ShowBookingPage />} />
-                    <Route path="/payments/status"      element={<PaymentStatusPage />} />
-                    <Route path="*"                     element={<NotFoundPage />} />
-                </Routes>
-            </Router>
-        </AuthProvider>
+        <ErrorBoundary>
+            <AuthProvider>
+                <GlobalStyle />
+                <Router>
+                    <Routes>
+                        <Route path="/"                     element={<HomePage />} />
+                        <Route path="/login"                element={<LoginPage />} />
+                        <Route path="/register"             element={<RegisterPage />} />
+                        <Route path="/movies"               element={<MovieListPage />} />
+                        {/* Route uses :id to match MovieDetailPage's useParams({ id }) */}
+                        <Route path="/movies/:id"           element={<MovieDetailPage />} />
+                        {/* ShowListPage reads movieId as a query param: /shows?movieId=X */}
+                        <Route path="/shows"                element={<ShowListPage />} />
+                        <Route path="/shows/:showId/book"   element={<ShowBookingPage />} />
+                        <Route path="/payments/status"      element={<PaymentStatusPage />} />
+                        <Route path="*"                     element={<NotFoundPage />} />
+                    </Routes>
+                </Router>
+            </AuthProvider>
+        </ErrorBoundary>
     );
 
 }

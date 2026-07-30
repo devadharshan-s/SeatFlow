@@ -8,7 +8,7 @@ import lombok.Setter;
 public class SeatResponseDTO {
     private Long seatId;
     private Integer seatNumber;
-    private Integer rowNumber;
+    private String rowNumber;
     private Integer price;
     private String category;
 }

@@ -44,7 +44,11 @@ public class RedissonConfig {
         config.useSingleServer()
                 .setAddress(address)
                 .setTimeout(timeoutMs)
-                .setConnectTimeout(timeoutMs);
+                .setConnectTimeout(timeoutMs)
+                .setConnectionMinimumIdleSize(1)
+                .setConnectionPoolSize(4)
+                .setSubscriptionConnectionMinimumIdleSize(1)
+                .setSubscriptionConnectionPoolSize(2);
 
         if (redisPassword != null && !redisPassword.isBlank()) {
             config.useSingleServer().setPassword(redisPassword);

@@ -9,6 +9,14 @@ const showApi = axios.create({
   },
 });
 
+showApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('jwt_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export const getAllShows = async (page: number = 0, size: number = 10): Promise<any> => {
   try {
     const response = await showApi.get(`/show/getAllShows?page=${page}&size=${size}`);
@@ -55,6 +63,16 @@ export const unlockSeats = async (ticketId: string, seatIds: number[]): Promise<
     return response.data;
   } catch (error) {
     console.error(`Error unlocking seats for ticket ID ${ticketId}:`, error);
+    throw error;
+  }
+};
+
+export const resolveShowSeatIds = async (showId: string, seatIds: number[]): Promise<any> => {
+  try {
+    const response = await showApi.post(`/show-seat/shows/${showId}/resolve-seat-ids`, seatIds);
+    return response.data;
+  } catch (error) {
+    console.error(`Error resolving show seat IDs for show ID ${showId}:`, error);
     throw error;
   }
 };

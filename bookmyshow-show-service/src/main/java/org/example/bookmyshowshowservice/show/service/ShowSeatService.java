@@ -92,7 +92,8 @@ public class ShowSeatService {
         String requestedStatus = status == null ? "ALL" : status.toUpperCase();
 
         seatDetails.forEach((seatId, seat) -> {
-            ShowSeat showSeat = showSeatsMap.get(seatId);
+            Long numericSeatId = Long.valueOf(seatId.toString());
+            ShowSeat showSeat = showSeatsMap.get(numericSeatId);
             if (showSeat == null) {
                 return;
             }
@@ -250,13 +251,31 @@ public class ShowSeatService {
 
     @CircuitBreaker(name = "redisHold", fallbackMethod = "holdSeatsFallback")
     public List<Long> holdSeats(Long ticketId, List<Long> showSeatIds, int holdSeconds) {
-        return seatHoldService.holdSeats(ticketId, showSeatIds, holdSeconds);
+        List<Long> response = seatHoldService.holdSeats(ticketId, showSeatIds, holdSeconds);
+        if (response != null && !response.isEmpty()) {
+            try {
+                Long showId = getShowIdForSeat(response.get(0));
+                evictShowSeatsCache(showId);
+            } catch (Exception ex) {
+                log.error("Failed to evict showSeatsCache on holdSeats", ex);
+            }
+        }
+        return response;
     }
-
+ 
     public List<Long> holdSeatsFallback(Long ticketId, List<Long> showSeatIds, int holdSeconds, Throwable t) {
         log.error("Redis holdSeats failed, circuit breaker active. Falling back to MySQL LockService. Error: {}",
                 t.getMessage());
-        return lockService.lockSeats(showSeatIds, holdSeconds);
+        List<Long> response = lockService.lockSeats(showSeatIds, holdSeconds);
+        if (response != null && !response.isEmpty()) {
+            try {
+                Long showId = getShowIdForSeat(response.get(0));
+                evictShowSeatsCache(showId);
+            } catch (Exception ex) {
+                log.error("Failed to evict showSeatsCache on holdSeatsFallback", ex);
+            }
+        }
+        return response;
     }
 
     @CircuitBreaker(name = "redisRelease", fallbackMethod = "releaseHoldFallback")

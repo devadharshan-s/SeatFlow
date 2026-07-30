@@ -9,9 +9,22 @@ const bookingApi = axios.create({
   },
 });
 
+bookingApi.interceptors.request.use((config) => {
+  const token = localStorage.getItem('jwt_token');
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`;
+  }
+  return config;
+});
+
 export const bookTickets = async (showId: string, seatIds: string[], userId: string): Promise<any> => {
   try {
-    const response = await bookingApi.post('/bookmyshow-booking-service/bookTickets', { showId, seatIds, userId });
+    const numUserId = !isNaN(Number(userId)) && userId !== '' ? Number(userId) : null;
+    const response = await bookingApi.post('/bookmyshow-booking-service/bookTickets', {
+      showId: Number(showId),
+      seatIds: seatIds.map(Number),
+      userId: numUserId
+    });
     return response.data; // Expecting TicketResponseDTO
   } catch (error) {
     console.error('Error booking tickets:', error);

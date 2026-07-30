@@ -1,8 +1,8 @@
 // src/pages/Shows/ShowBookingPage.tsx
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import styled, { keyframes } from 'styled-components';
-import { getShowSeats, lockSeats } from '../../api/show';
+import styled, { keyframes, css } from 'styled-components';
+import { getShowSeats, lockSeats, resolveShowSeatIds } from '../../api/show';
 import { SeatAvailabilityResponse } from '../../api/types';
 import { theme } from '../../styles/theme';
 import PageWrapper from '../../components/layout/PageWrapper';
@@ -24,23 +24,49 @@ const ShowBookingPage: React.FC = () => {
     const [error, setError] = useState<string | null>(null);
     const [locking, setLocking] = useState<boolean>(false);
 
-    const fetchSeats = useCallback(async () => {
+    const isPollingActive = useRef<boolean>(true);
+
+    const fetchSeats = useCallback(async (isPoll = false) => {
         if (!showId) return;
-        setLoading(true);
+        if (!isPoll) setLoading(true);
         setError(null);
         try {
             const data = await getShowSeats(showId);
-            setSeats(data.data ?? data ?? []);
+            const parsedSeats: SeatAvailabilityResponse[] = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+            setSeats(parsedSeats);
+            
+            // Reconcile selectedSeats: remove any seats that are no longer AVAILABLE
+            setSelectedSeats((prev) =>
+                prev.filter((id) => parsedSeats.some((s) => s.seatId === id && s.status === 'AVAILABLE'))
+            );
+
+            if (data?.data === null) {
+                setError(data?.message || 'Failed to fetch seats from server.');
+            }
         } catch {
             setError('Failed to fetch seats. Please try again.');
         } finally {
-            setLoading(false);
+            if (!isPoll) setLoading(false);
         }
     }, [showId]);
 
     useEffect(() => {
         fetchSeats();
     }, [fetchSeats]);
+
+    useEffect(() => {
+        let interval: ReturnType<typeof setInterval>;
+        if (lockedSeatIds.length === 0) {
+            interval = setInterval(() => {
+                if (isPollingActive.current && !loading && !locking) {
+                    fetchSeats(true);
+                }
+            }, 15000);
+        }
+        return () => {
+            if (interval) clearInterval(interval);
+        };
+    }, [lockedSeatIds, loading, locking, fetchSeats]);
 
     useEffect(() => {
         let timer: ReturnType<typeof setInterval>;
@@ -66,13 +92,19 @@ const ShowBookingPage: React.FC = () => {
     const handleLockSeats = async () => {
         if (!showId || selectedSeats.length === 0) return;
         setLocking(true);
+        setError(null);
         try {
-            await lockSeats(showId, selectedSeats.map(String), LOCK_DURATION_SECONDS);
+            const resolved = await resolveShowSeatIds(showId, selectedSeats);
+            const showSeatIds = resolved.data ?? resolved;
+            if (!Array.isArray(showSeatIds) || showSeatIds.length === 0) {
+                throw new Error("Could not resolve seats");
+            }
+            await lockSeats(showId, showSeatIds.map(String), LOCK_DURATION_SECONDS);
             setLockedSeatIds(selectedSeats);
             setLockTimer(LOCK_DURATION_SECONDS);
             fetchSeats();
-        } catch {
-            setError('Failed to lock seats — they may have been taken. Please re-select.');
+        } catch (err: any) {
+            setError(err.response?.data?.message || 'Failed to lock seats — they may have been taken. Please re-select.');
             fetchSeats();
         } finally {
             setLocking(false);
@@ -399,7 +431,7 @@ const Seat = styled.button<{ $state: SeatState }>`
 
   ${({ $state }) =>
       $state === 'selected' &&
-      `animation: ${selectedPulse} 1.8s ease infinite;`}
+      css`animation: ${selectedPulse} 1.8s ease infinite;`}
 
   &:focus-visible {
     outline: 2px solid ${theme.colors.accent};
