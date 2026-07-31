@@ -2,278 +2,191 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import styled, { keyframes, css } from 'styled-components';
-import { getShowSeats, lockSeats, resolveShowSeatIds } from '../../api/show';
+import { getShowSeats } from '../../api/show';
 import { SeatAvailabilityResponse } from '../../api/types';
 import { theme } from '../../styles/theme';
 import PageWrapper from '../../components/layout/PageWrapper';
 import SkeletonCard from '../../components/common/SkeletonCard';
 import ErrorCard from '../../components/common/ErrorCard';
 
-const LOCK_DURATION_SECONDS = 300;
-
 const ShowBookingPage: React.FC = () => {
 
-    const { showId } = useParams<{ showId: string }>();
-    const navigate = useNavigate();
+  const { showId } = useParams<{ showId: string }>();
+  const navigate = useNavigate();
 
-    const [seats, setSeats] = useState<SeatAvailabilityResponse[]>([]);
-    const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
-    const [lockedSeatIds, setLockedSeatIds] = useState<number[]>([]);
-    const [lockTimer, setLockTimer] = useState<number>(0);
-    const [loading, setLoading] = useState<boolean>(true);
-    const [error, setError] = useState<string | null>(null);
-    const [locking, setLocking] = useState<boolean>(false);
-    const [bookingToken] = useState<string>(() => {
-        try {
-            return window.crypto.randomUUID();
-        } catch {
-            return 'xxxx-xxxx-4xxx-yxxx'.replace(/[xy]/g, (c) => {
-                const r = (Math.random() * 16) | 0;
-                const v = c === 'x' ? r : (r & 0x3) | 0x8;
-                return v.toString(16);
-            });
-        }
+  const [seats, setSeats] = useState<SeatAvailabilityResponse[]>([]);
+  const [selectedSeats, setSelectedSeats] = useState<number[]>([]);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string | null>(null);
+
+  const isPollingActive = useRef<boolean>(true);
+
+  const fetchSeats = useCallback(async (isPoll = false) => {
+    if (!showId) return;
+    if (!isPoll) setLoading(true);
+    setError(null);
+    try {
+      const data = await getShowSeats(showId);
+      const parsedSeats: SeatAvailabilityResponse[] = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
+      setSeats(parsedSeats);
+
+      // Reconcile selectedSeats: remove any seats that are no longer AVAILABLE
+      setSelectedSeats((prev) =>
+        prev.filter((id) => parsedSeats.some((s) => s.seatId === id && s.status === 'AVAILABLE'))
+      );
+
+      if (data?.data === null) {
+        setError(data?.message || 'Failed to fetch seats from server.');
+      }
+    } catch {
+      setError('Failed to fetch seats. Please try again.');
+    } finally {
+      if (!isPoll) setLoading(false);
+    }
+  }, [showId]);
+
+  useEffect(() => {
+    fetchSeats();
+  }, [fetchSeats]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (isPollingActive.current && !loading) {
+        fetchSeats(true);
+      }
+    }, 15000);
+    return () => clearInterval(interval);
+  }, [loading, fetchSeats]);
+
+  const handleSeatSelect = (seatId: number, status: string, booked: boolean) => {
+    if (status === 'AVAILABLE' && !booked) {
+      setSelectedSeats((prev) =>
+        prev.includes(seatId) ? prev.filter((id) => id !== seatId) : [...prev, seatId]
+      );
+    }
+  };
+
+  const handleProceedToPayment = () => {
+    if (selectedSeats.length === 0) return;
+    navigate('/payments/status', {
+      state: { showId, lockedSeatIds: selectedSeats, totalAmount: calculateTotalAmount() },
     });
+  };
 
-    const isPollingActive = useRef<boolean>(true);
+  const calculateTotalAmount = () =>
+    selectedSeats.reduce((total, seatId) => {
+      const seat = seats.find((s) => s.seatId === seatId);
+      return total + (seat ? seat.price : 0);
+    }, 0);
 
-    const fetchSeats = useCallback(async (isPoll = false) => {
-        if (!showId) return;
-        if (!isPoll) setLoading(true);
-        setError(null);
-        try {
-            const data = await getShowSeats(showId);
-            const parsedSeats: SeatAvailabilityResponse[] = Array.isArray(data?.data) ? data.data : (Array.isArray(data) ? data : []);
-            setSeats(parsedSeats);
-            
-            // Reconcile selectedSeats: remove any seats that are no longer AVAILABLE
-            setSelectedSeats((prev) =>
-                prev.filter((id) => parsedSeats.some((s) => s.seatId === id && s.status === 'AVAILABLE'))
-            );
+  const seatLayout = seats.reduce((acc, seat) => {
+    if (!acc[seat.rowNumber]) acc[seat.rowNumber] = [];
+    acc[seat.rowNumber].push(seat);
+    return acc;
+  }, {} as Record<string, SeatAvailabilityResponse[]>);
 
-            if (data?.data === null) {
-                setError(data?.message || 'Failed to fetch seats from server.');
-            }
-        } catch {
-            setError('Failed to fetch seats. Please try again.');
-        } finally {
-            if (!isPoll) setLoading(false);
-        }
-    }, [showId]);
 
-    useEffect(() => {
-        fetchSeats();
-    }, [fetchSeats]);
-
-    useEffect(() => {
-        let interval: ReturnType<typeof setInterval>;
-        if (lockedSeatIds.length === 0) {
-            interval = setInterval(() => {
-                if (isPollingActive.current && !loading && !locking) {
-                    fetchSeats(true);
-                }
-            }, 15000);
-        }
-        return () => {
-            if (interval) clearInterval(interval);
-        };
-    }, [lockedSeatIds, loading, locking, fetchSeats]);
-
-    useEffect(() => {
-        let timer: ReturnType<typeof setInterval>;
-        if (lockedSeatIds.length > 0 && lockTimer > 0) {
-            timer = setInterval(() => setLockTimer((prev) => prev - 1), 1000);
-        } else if (lockTimer === 0 && lockedSeatIds.length > 0) {
-            setLockedSeatIds([]);
-            setSelectedSeats([]);
-            fetchSeats();
-        }
-        return () => clearInterval(timer);
-    }, [lockedSeatIds, lockTimer, fetchSeats]);
-
-    const handleSeatSelect = (seatId: number, status: string, booked: boolean) => {
-        if (lockedSeatIds.length > 0) return;
-        if (status === 'AVAILABLE' && !booked) {
-            setSelectedSeats((prev) =>
-                prev.includes(seatId) ? prev.filter((id) => id !== seatId) : [...prev, seatId]
-            );
-        }
-    };
-
-    const handleLockSeats = async () => {
-        if (!showId || selectedSeats.length === 0) return;
-        setLocking(true);
-        setError(null);
-        try {
-            const resolved = await resolveShowSeatIds(showId, selectedSeats);
-            const showSeatIds = resolved.data ?? resolved;
-            if (!Array.isArray(showSeatIds) || showSeatIds.length === 0) {
-                throw new Error("Could not resolve seats");
-            }
-            await lockSeats(showId, showSeatIds.map(String), LOCK_DURATION_SECONDS, bookingToken);
-            setLockedSeatIds(selectedSeats);
-            setLockTimer(LOCK_DURATION_SECONDS);
-            fetchSeats();
-        } catch (err: any) {
-            setError(err.response?.data?.message || 'Failed to lock seats — they may have been taken. Please re-select.');
-            fetchSeats();
-        } finally {
-            setLocking(false);
-        }
-    };
-
-    const handleProceedToPayment = () => {
-        if (lockedSeatIds.length === 0 || lockTimer === 0) return;
-        navigate('/payments/status', {
-            state: { showId, lockedSeatIds, totalAmount: calculateTotalAmount(), bookingToken },
-        });
-    };
-
-    const calculateTotalAmount = () =>
-        selectedSeats.reduce((total, seatId) => {
-            const seat = seats.find((s) => s.seatId === seatId);
-            return total + (seat ? seat.price : 0);
-        }, 0);
-
-    const seatLayout = seats.reduce((acc, seat) => {
-        if (!acc[seat.rowNumber]) acc[seat.rowNumber] = [];
-        acc[seat.rowNumber].push(seat);
-        return acc;
-    }, {} as Record<string, SeatAvailabilityResponse[]>);
-
-    const timerProgress = lockedSeatIds.length > 0 ? (lockTimer / LOCK_DURATION_SECONDS) * 100 : 100;
-    const timerMin = Math.floor(lockTimer / 60).toString().padStart(2, '0');
-    const timerSec = (lockTimer % 60).toString().padStart(2, '0');
-
-    if (loading) {
-        return (
-            <PageWrapper>
-                <SkeletonCard height="60px" />
-                <div style={{ marginTop: theme.spacing.xl }}>
-                    <SkeletonCard height="400px" />
-                </div>
-            </PageWrapper>
-        );
-    }
-
-    if (error && seats.length === 0) {
-        return (
-            <PageWrapper>
-                <ErrorCard message={error} onRetry={fetchSeats} />
-            </PageWrapper>
-        );
-    }
-
+  if (loading) {
     return (
-        <PageWrapper>
-            <PageTitle>Select Your Seats</PageTitle>
-            <ShowMeta>Show #{showId}</ShowMeta>
-
-            {/* Lock timer banner */}
-            {lockedSeatIds.length > 0 && lockTimer > 0 && (
-                <TimerBanner id="lock-timer-banner">
-                    <TimerLeft>
-                        <TimerIcon>⏱</TimerIcon>
-                        <TimerText>Seats locked — complete payment within</TimerText>
-                    </TimerLeft>
-                    <TimerCount>{timerMin}:{timerSec}</TimerCount>
-                    <TimerBarWrapper>
-                        <TimerBar $progress={timerProgress} $urgent={lockTimer < 60} />
-                    </TimerBarWrapper>
-                </TimerBanner>
-            )}
-
-            {error && <InlineError>{error}</InlineError>}
-
-            {/* Screen indicator */}
-            <ScreenIndicator>
-                <ScreenLabel>SCREEN THIS WAY</ScreenLabel>
-            </ScreenIndicator>
-
-            {/* Seat grid */}
-            <SeatGridContainer>
-                {Object.entries(seatLayout)
-                    .sort(([a], [b]) => a.localeCompare(b))
-                    .map(([rowNumber, rowSeats]) => (
-                        <Row key={rowNumber}>
-                            <RowLabel>{rowNumber}</RowLabel>
-                            <SeatRow>
-                                {rowSeats
-                                    .sort((a, b) => a.seatNumber - b.seatNumber)
-                                    .map((seat) => {
-                                        const isSelected = selectedSeats.includes(seat.seatId);
-                                        const isBooked = seat.booked || seat.status === 'BOOKED';
-                                        const isLockedByMe = lockedSeatIds.includes(seat.seatId);
-                                        const isLockedByOthers = seat.status === 'LOCKED' && !isLockedByMe;
-
-                                        let state: 'available' | 'selected' | 'locked-me' | 'locked-others' | 'booked' = 'available';
-                                        if (isBooked) state = 'booked';
-                                        else if (isLockedByOthers) state = 'locked-others';
-                                        else if (isLockedByMe) state = 'locked-me';
-                                        else if (isSelected) state = 'selected';
-
-                                        return (
-                                            <Seat
-                                                key={seat.seatId}
-                                                id={`seat-${seat.seatId}`}
-                                                $state={state}
-                                                disabled={isBooked || isLockedByOthers}
-                                                onClick={() => handleSeatSelect(seat.seatId, seat.status, seat.booked)}
-                                                title={`Row ${rowNumber}, Seat ${seat.seatNumber} — ₹${seat.price} (${state})`}
-                                            >
-                                                {seat.seatNumber}
-                                            </Seat>
-                                        );
-                                    })}
-                            </SeatRow>
-                        </Row>
-                    ))}
-            </SeatGridContainer>
-
-            {/* Legend */}
-            <Legend>
-                <LegendItem><LegendDot $color={theme.colors.seatAvailableBorder} />Available</LegendItem>
-                <LegendItem><LegendDot $color={theme.colors.seatSelectedBorder} />Selected</LegendItem>
-                <LegendItem><LegendDot $color={theme.colors.seatLockedBorder} />Locked</LegendItem>
-                <LegendItem><LegendDot $color={theme.colors.seatBookedBorder} />Booked</LegendItem>
-            </Legend>
-
-            {/* Sticky booking summary */}
-            <SummaryBar id="booking-summary-bar">
-                <SummaryInfo>
-                    {lockedSeatIds.length > 0 ? (
-                        <>
-                            <SummaryCount>{lockedSeatIds.length} seat{lockedSeatIds.length > 1 ? 's' : ''} locked</SummaryCount>
-                            <SummaryAmount>₹{calculateTotalAmount().toFixed(2)}</SummaryAmount>
-                        </>
-                    ) : selectedSeats.length > 0 ? (
-                        <>
-                            <SummaryCount>{selectedSeats.length} seat{selectedSeats.length > 1 ? 's' : ''} selected</SummaryCount>
-                            <SummaryAmount>₹{calculateTotalAmount().toFixed(2)}</SummaryAmount>
-                        </>
-                    ) : (
-                        <SummaryHint>Select seats to continue</SummaryHint>
-                    )}
-                </SummaryInfo>
-                <SummaryActions>
-                    <LockBtn
-                        id="lock-seats-btn"
-                        onClick={handleLockSeats}
-                        disabled={selectedSeats.length === 0 || lockedSeatIds.length > 0 || locking}
-                    >
-                        {locking ? 'Locking…' : lockedSeatIds.length > 0 ? '✓ Seats Locked' : 'Lock Seats'}
-                    </LockBtn>
-                    <PayBtn
-                        id="proceed-to-payment-btn"
-                        onClick={handleProceedToPayment}
-                        disabled={lockedSeatIds.length === 0 || lockTimer === 0}
-                    >
-                        Proceed to Payment →
-                    </PayBtn>
-                </SummaryActions>
-            </SummaryBar>
-        </PageWrapper>
+      <PageWrapper>
+        <SkeletonCard height="60px" />
+        <div style={{ marginTop: theme.spacing.xl }}>
+          <SkeletonCard height="400px" />
+        </div>
+      </PageWrapper>
     );
+  }
+
+  if (error && seats.length === 0) {
+    return (
+      <PageWrapper>
+        <ErrorCard message={error} onRetry={fetchSeats} />
+      </PageWrapper>
+    );
+  }
+
+  return (
+    <PageWrapper>
+      <PageTitle>Select Your Seats</PageTitle>
+      <ShowMeta>Show #{showId}</ShowMeta>
+
+      {error && <InlineError>{error}</InlineError>}
+
+      {/* Screen indicator */}
+      <ScreenIndicator>
+        <ScreenLabel>SCREEN THIS WAY</ScreenLabel>
+      </ScreenIndicator>
+
+      {/* Seat grid */}
+      <SeatGridContainer>
+        {Object.entries(seatLayout)
+          .sort(([a], [b]) => a.localeCompare(b))
+          .map(([rowNumber, rowSeats]) => (
+            <Row key={rowNumber}>
+              <RowLabel>{rowNumber}</RowLabel>
+              <SeatRow>
+                {rowSeats
+                  .sort((a, b) => a.seatNumber - b.seatNumber)
+                  .map((seat) => {
+                    const isSelected = selectedSeats.includes(seat.seatId);
+                    const isBooked = seat.booked || seat.status === 'BOOKED';
+                    const isLocked = seat.status === 'LOCKED';
+
+                    let state: 'available' | 'selected' | 'locked-me' | 'locked-others' | 'booked' = 'available';
+                    if (isBooked) state = 'booked';
+                    else if (isLocked) state = 'locked-others';
+                    else if (isSelected) state = 'selected';
+
+                    return (
+                      <Seat
+                        key={seat.seatId}
+                        id={`seat-${seat.seatId}`}
+                        $state={state}
+                        disabled={isBooked || isLocked}
+                        onClick={() => handleSeatSelect(seat.seatId, seat.status, seat.booked)}
+                        title={`Row ${rowNumber}, Seat ${seat.seatNumber} — ₹${seat.price} (${state})`}
+                      >
+                        {seat.seatNumber}
+                      </Seat>
+                    );
+                  })}
+              </SeatRow>
+            </Row>
+          ))}
+      </SeatGridContainer>
+
+      {/* Legend */}
+      <Legend>
+        <LegendItem><LegendDot $color={theme.colors.seatAvailableBorder} />Available</LegendItem>
+        <LegendItem><LegendDot $color={theme.colors.seatSelectedBorder} />Selected</LegendItem>
+        <LegendItem><LegendDot $color={theme.colors.seatLockedBorder} />Locked</LegendItem>
+        <LegendItem><LegendDot $color={theme.colors.seatBookedBorder} />Booked</LegendItem>
+      </Legend>
+
+      {/* Sticky booking summary */}
+      <SummaryBar id="booking-summary-bar">
+        <SummaryInfo>
+          {selectedSeats.length > 0 ? (
+            <>
+              <SummaryCount>{selectedSeats.length} seat{selectedSeats.length > 1 ? 's' : ''} selected</SummaryCount>
+              <SummaryAmount>₹{calculateTotalAmount().toFixed(2)}</SummaryAmount>
+            </>
+          ) : (
+            <SummaryHint>Select seats to continue</SummaryHint>
+          )}
+        </SummaryInfo>
+        <SummaryActions>
+          <PayBtn
+            id="proceed-to-payment-btn"
+            onClick={handleProceedToPayment}
+            disabled={selectedSeats.length === 0}
+          >
+            Proceed to Payment →
+          </PayBtn>
+        </SummaryActions>
+      </SummaryBar>
+    </PageWrapper>
+  );
 
 };
 
@@ -411,11 +324,11 @@ const SeatRow = styled.div`
 type SeatState = 'available' | 'selected' | 'locked-me' | 'locked-others' | 'booked';
 
 const seatColors: Record<SeatState, { bg: string; border: string }> = {
-    available: { bg: theme.colors.seatAvailableBg, border: theme.colors.seatAvailableBorder },
-    selected: { bg: theme.colors.seatSelectedBg, border: theme.colors.seatSelectedBorder },
-    'locked-me': { bg: theme.colors.seatSelectedBg, border: theme.colors.seatSelectedBorder },
-    'locked-others': { bg: theme.colors.seatLockedBg, border: theme.colors.seatLockedBorder },
-    booked: { bg: theme.colors.seatBookedBg, border: theme.colors.seatBookedBorder },
+  available: { bg: theme.colors.seatAvailableBg, border: theme.colors.seatAvailableBorder },
+  selected: { bg: theme.colors.seatSelectedBg, border: theme.colors.seatSelectedBorder },
+  'locked-me': { bg: theme.colors.seatSelectedBg, border: theme.colors.seatSelectedBorder },
+  'locked-others': { bg: theme.colors.seatLockedBg, border: theme.colors.seatLockedBorder },
+  booked: { bg: theme.colors.seatBookedBg, border: theme.colors.seatBookedBorder },
 };
 
 const Seat = styled.button<{ $state: SeatState }>`
@@ -441,8 +354,8 @@ const Seat = styled.button<{ $state: SeatState }>`
   }
 
   ${({ $state }) =>
-      $state === 'selected' &&
-      css`animation: ${selectedPulse} 1.8s ease infinite;`}
+    $state === 'selected' &&
+    css`animation: ${selectedPulse} 1.8s ease infinite;`}
 
   &:focus-visible {
     outline: 2px solid ${theme.colors.accent};

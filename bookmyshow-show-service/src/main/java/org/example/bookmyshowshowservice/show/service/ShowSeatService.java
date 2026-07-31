@@ -1,10 +1,8 @@
 package org.example.bookmyshowshowservice.show.service;
 
-import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 import org.example.bookmyshowshowservice.common.dto.ApiResponse;
 import org.example.bookmyshowshowservice.common.exception.TicketNotFoundException;
+import io.github.resilience4j.circuitbreaker.annotation.CircuitBreaker;
 import org.example.bookmyshowshowservice.show.api.dto.SeatAvailabilityResponse;
 import org.example.bookmyshowshowservice.show.client.SeatClient;
 import org.example.bookmyshowshowservice.show.client.TicketClient;
@@ -16,12 +14,14 @@ import org.example.bookmyshowshowservice.show.model.ShowSeat;
 import org.example.bookmyshowshowservice.show.repository.ShowSeatRepository;
 import org.example.bookmyshowshowservice.show.repository.ShowsRepository;
 import org.example.bookmyshowshowservice.show.client.dto.SeatResponseDTO;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.cache.annotation.CacheEvict;
-import org.springframework.cache.annotation.Cacheable;
-import org.springframework.context.annotation.Lazy;
-import org.springframework.stereotype.Service;
 import jakarta.transaction.Transactional;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
+import org.springframework.cache.annotation.Cacheable;
+import org.springframework.cache.annotation.CacheEvict;
+import org.springframework.stereotype.Service;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -47,24 +47,31 @@ public class ShowSeatService {
 
     @Cacheable(value = "staticSeatDetails", key = "#showId")
     public Map<Long, SeatResponseDTO> getStaticSeatDetails(Long showId, List<Long> seatIds) {
+
         ApiResponse<Map<Long, SeatResponseDTO>> seatsResponse = seatClient.getSeats(seatIds);
         return (seatsResponse != null && seatsResponse.getData() != null) ? seatsResponse.getData() : Map.of();
+
     }
 
     @CacheEvict(value = "staticSeatDetails", key = "#showId")
     public void evictStaticSeatDetails(Long showId) {
+
         log.info("Evicted static seat details cache for showId: {}", showId);
+
     }
 
     public Long getShowIdForSeat(Long showSeatId) {
+
         ShowSeat seat = showSeatRepository.findById(showSeatId)
                 .orElseThrow(() -> new ShowSeatNotFoundException("Seat not found"));
         return seat.getShow().getShowId();
+
     }
 
     @Cacheable(value = "showSeatsCache", key = "#showId + '-' + (#status != null ? #status.toUpperCase() : 'ALL')")
     @Transactional
     public List<SeatAvailabilityResponse> getShowSeats(Long showId, String status) {
+
         showsRepository.findByShowId(showId)
                 .orElseThrow(() -> new ShowNotFoundException("Show not found"));
 
@@ -79,10 +86,6 @@ public class ShowSeatService {
         List<Long> seatIds = showSeats.stream().map(ShowSeat::getSeatId).toList();
         Map<Long, SeatResponseDTO> seatDetails = self.getStaticSeatDetails(showId, seatIds);
 
-        // Fetch active selection locks from Redis in bulk
-        List<Long> showSeatIds = showSeats.stream().map(ShowSeat::getShowSeatId).toList();
-        Map<Long, LocalDateTime> activeLocks = seatHoldService.getActiveLocks(showSeatIds);
-
         List<SeatAvailabilityResponse> response = new ArrayList<>();
         LocalDateTime now = LocalDateTime.now();
         String requestedStatus = status == null ? "ALL" : status.toUpperCase();
@@ -95,16 +98,14 @@ public class ShowSeatService {
             }
 
             LocalDateTime holdExpiry = seatHoldService.getHoldExpiry(showSeat.getShowSeatId());
-            LocalDateTime selectionLockExpiry = activeLocks.get(showSeat.getShowSeatId());
             String actualStatus;
-
             if (Boolean.TRUE.equals(showSeat.getIsBooked())) {
                 actualStatus = "BOOKED";
             } else if (holdExpiry != null) {
                 actualStatus = "LOCKED";
-            } else if (selectionLockExpiry != null) {
+            } else if (showSeat.getLockedUntil() != null && showSeat.getLockedUntil().isAfter(now)) {
                 actualStatus = "LOCKED";
-                holdExpiry = selectionLockExpiry;
+                holdExpiry = showSeat.getLockedUntil();
             } else {
                 actualStatus = "AVAILABLE";
             }
@@ -127,6 +128,7 @@ public class ShowSeatService {
         });
 
         return response;
+
     }
 
     @Transactional
@@ -164,18 +166,22 @@ public class ShowSeatService {
         Long showId = showSeats.get(0).getShow().getShowId();
 
         showSeats.forEach(seat -> {
+
             if (Boolean.TRUE.equals(seat.getIsBooked())) {
                 if (!ticketId.equals(seat.getTicketId())) {
                     throw new SeatOperationException(
                             "Seat " + seat.getShowSeatId() + " is already booked by another user");
                 }
+                // Since seat is already booked, idempotent re-transmission skip!
                 return;
             }
+
             seat.setIsBooked(Boolean.TRUE);
             seat.setTicketId(ticketId);
         });
 
         showSeatRepository.saveAll(showSeats);
+
         evictShowSeatsCache(showId);
 
         return showSeats.stream().map(ShowSeat::getShowSeatId).toList();
@@ -197,8 +203,10 @@ public class ShowSeatService {
                 throw new SeatOperationException(
                         "Seat " + showSeat.getShowSeatId() + " is not associated with ticketId: " + ticketId);
             }
+            showSeat.setLockedUntil(null);
         }
 
+        showSeatRepository.saveAll(showSeats);
         evictShowSeatsCache(showId);
         return Boolean.TRUE;
     }
@@ -219,6 +227,7 @@ public class ShowSeatService {
         });
 
         showSeatRepository.saveAll(bookedSeats);
+
         evictShowSeatsCache(showId);
 
         return bookedSeats.stream().map(ShowSeat::getShowSeatId).toList();
@@ -237,28 +246,9 @@ public class ShowSeatService {
         }
     }
 
-    @CircuitBreaker(name = "redisLock", fallbackMethod = "lockSeatsFallback")
-    public List<Long> lockSeats(List<Long> showSeatIds, int seconds, String bookingToken) {
-        List<Long> response = seatHoldService.lockSeats(showSeatIds, seconds, bookingToken);
-        if (response != null && !response.isEmpty()) {
-            try {
-                Long showId = getShowIdForSeat(response.get(0));
-                evictShowSeatsCache(showId);
-            } catch (Exception ex) {
-                log.error("Failed to evict showSeatsCache on lockSeats", ex);
-            }
-        }
-        return response;
-    }
-
-    public List<Long> lockSeatsFallback(List<Long> showSeatIds, int seconds, String bookingToken, Throwable t) {
-        log.error("Redis lockSeats failed, circuit breaker active. Failing fast. Error: {}", t.getMessage());
-        throw new SeatOperationException("Locking service is currently unavailable. Please try again later.");
-    }
-
     @CircuitBreaker(name = "redisHold", fallbackMethod = "holdSeatsFallback")
-    public List<Long> holdSeats(Long ticketId, List<Long> showSeatIds, int holdSeconds, String bookingToken) {
-        List<Long> response = seatHoldService.holdSeats(ticketId, showSeatIds, holdSeconds, bookingToken);
+    public List<Long> holdSeats(Long ticketId, List<Long> showSeatIds, int holdSeconds) {
+        List<Long> response = seatHoldService.holdSeats(ticketId, showSeatIds, holdSeconds);
         if (response != null && !response.isEmpty()) {
             try {
                 Long showId = getShowIdForSeat(response.get(0));
@@ -270,7 +260,7 @@ public class ShowSeatService {
         return response;
     }
 
-    public List<Long> holdSeatsFallback(Long ticketId, List<Long> showSeatIds, int holdSeconds, String bookingToken, Throwable t) {
+    public List<Long> holdSeatsFallback(Long ticketId, List<Long> showSeatIds, int holdSeconds, Throwable t) {
         log.error("Redis holdSeats failed, circuit breaker active. Failing fast. Error: {}", t.getMessage());
         throw new SeatOperationException("Booking service holds are currently unavailable. Please try again later.");
     }
@@ -281,7 +271,9 @@ public class ShowSeatService {
     }
 
     public Boolean releaseHoldFallback(Long ticketId, Throwable t) {
-        log.error("Redis releaseHold failed for ticketId: {}. Error: {}", ticketId, t.getMessage());
+        log.error(
+                "Redis releaseHold failed for ticketId: {}, ignoring since MySQL locks expire automatically. Error: {}",
+                ticketId, t.getMessage());
         return true;
     }
 
@@ -291,7 +283,8 @@ public class ShowSeatService {
     }
 
     public List<Long> confirmHoldFallback(Long ticketId, Throwable t) {
-        log.error("Redis confirmHold failed for ticketId: {}. Error: {}", ticketId, t.getMessage());
+        log.error("Redis confirmHold failed for ticketId: {}, falling back to database query. Error: {}", ticketId,
+                t.getMessage());
         try {
             List<Long> seatIds = getShowSeatsByTicketId(ticketId);
             unlockSeats(ticketId, seatIds);

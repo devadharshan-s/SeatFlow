@@ -17,148 +17,122 @@ import java.util.List;
 @Slf4j
 public class ShowSeatController {
 
-    private final ShowSeatService showSeatService;
-    private final SeatHoldService seatHoldService;
+        private final ShowSeatService showSeatService;
+        private final SeatHoldService seatHoldService;
 
-    @PostMapping("/shows/{showId}/resolve-seat-ids")
-    public ResponseEntity<ApiResponse<List<Long>>> resolveShowSeatIds(@PathVariable Long showId, @RequestBody List<Long> seatIds) {
-        List<Long> resolvedIds = showSeatService.resolveShowSeatIds(showId, seatIds);
-        return ResponseEntity.ok(
-                new ApiResponse<>(
-                        200,
-                        "Seats resolved successfully",
-                        resolvedIds,
-                        LocalDateTime.now()
-                )
-        );
-    }
+        @PostMapping("/shows/{showId}/resolve-seat-ids")
+        public ResponseEntity<ApiResponse<List<Long>>> resolveShowSeatIds(@PathVariable Long showId,
+                        @RequestBody List<Long> seatIds) {
+                List<Long> resolvedIds = showSeatService.resolveShowSeatIds(showId, seatIds);
+                return ResponseEntity.ok(
+                                new ApiResponse<>(
+                                                200,
+                                                "Seats resolved successfully",
+                                                resolvedIds,
+                                                LocalDateTime.now()));
+        }
 
-    @GetMapping("/getShowSeats/{showId}")
-    public ResponseEntity<ApiResponse<List<SeatAvailabilityResponse>>> getShowSeatsByStatus(
-            @PathVariable Long showId,
-            @RequestParam(defaultValue = "ALL") String status) {
+        @GetMapping("/getShowSeats/{showId}")
+        public ResponseEntity<ApiResponse<List<SeatAvailabilityResponse>>> getShowSeatsByStatus(
+                        @PathVariable Long showId,
+                        @RequestParam(defaultValue = "ALL") String status) {
 
-        List<SeatAvailabilityResponse> response = showSeatService.getShowSeats(showId, status);
+                List<SeatAvailabilityResponse> response = showSeatService.getShowSeats(showId, status);
 
-        return ResponseEntity.ok(
-                new ApiResponse<>(
-                        200,
-                        "Seats retrieved successfully",
-                        response,
-                        LocalDateTime.now()
-                )
-        );
-    }
+                return ResponseEntity.ok(
+                                new ApiResponse<>(
+                                                200,
+                                                "Seats retrieved successfully",
+                                                response,
+                                                LocalDateTime.now()));
+        }
 
-    @GetMapping("/getShowSeatsByTicket/{ticketId}")
-    public ResponseEntity<ApiResponse<List<Long>>> getShowSeatsByTicketId(@PathVariable Long ticketId) {
-        List<Long> seatIds = showSeatService.getShowSeatsByTicketId(ticketId);
-        return ResponseEntity.ok(
-                new ApiResponse<>(
-                        200,
-                        "Seats retrieved successfully for ticket",
-                        seatIds,
-                        LocalDateTime.now()
-                )
-        );
-    }
+        @GetMapping("/getShowSeatsByTicket/{ticketId}")
+        public ResponseEntity<ApiResponse<List<Long>>> getShowSeatsByTicketId(@PathVariable Long ticketId) {
+                List<Long> seatIds = showSeatService.getShowSeatsByTicketId(ticketId);
+                return ResponseEntity.ok(
+                                new ApiResponse<>(
+                                                200,
+                                                "Seats retrieved successfully for ticket",
+                                                seatIds,
+                                                LocalDateTime.now()));
+        }
 
-    @PostMapping("/lockSeats/{seconds}")
-    public ResponseEntity<ApiResponse<List<Long>>> lockSeats(
-            @RequestBody List<Long> showSeatIds,
-            @PathVariable int seconds,
-            @RequestParam(value = "bookingToken", required = false) String bookingToken) {
-        List<Long> response = showSeatService.lockSeats(showSeatIds, seconds, bookingToken);
-        return ResponseEntity.ok(
-                new ApiResponse<>(
-                        200,
-                        "Seats locked successfully",
-                        response,
-                        LocalDateTime.now()
-                ));
-    }
 
-    @PostMapping("/bookSeats/{ticketId}")
-    public ResponseEntity<ApiResponse<List<Long>>> bookSeats(@PathVariable Long ticketId, @RequestBody List<Long> showSeatIds) {
-        List<Long> bookSeats = showSeatService.bookSeats(showSeatIds, ticketId);
-        return ResponseEntity.ok(
-                new ApiResponse<>(
-                        200,
-                        "Seats booked successfully",
-                        bookSeats,
-                        LocalDateTime.now()
-                )
-        );
-    }
+        @PostMapping("/bookSeats/{ticketId}")
+        public ResponseEntity<ApiResponse<List<Long>>> bookSeats(@PathVariable Long ticketId,
+                        @RequestBody List<Long> showSeatIds) {
 
-    @PostMapping("/unlockSeats/{ticketId}")
-    public ResponseEntity<ApiResponse<Boolean>> unlockSeats(@PathVariable Long ticketId, @RequestBody List<Long> showSeatIds) {
-        Boolean unlocked = showSeatService.unlockSeats(ticketId, showSeatIds);
-        return ResponseEntity.ok(
-                new ApiResponse<>(
-                        200,
-                        "Seats unlocked successfully",
-                        unlocked,
-                        LocalDateTime.now()
-                )
-        );
-    }
+                List<Long> bookSeats = showSeatService.bookSeats(showSeatIds, ticketId);
 
-    @DeleteMapping("/cancelSeats/{ticketId}")
-    public ResponseEntity<ApiResponse<List<Long>>> cancelSeats(@PathVariable Long ticketId) {
-        List<Long> unbookedSeats = showSeatService.cancelSeats(ticketId);
-        return ResponseEntity.ok(
-                new ApiResponse<>(
-                        200,
-                        "Seats cancelled successfully",
-                        unbookedSeats,
-                        LocalDateTime.now()
-                )
-        );
-    }
+                return ResponseEntity.ok(
+                                new ApiResponse<>(
+                                                200,
+                                                "Seats booked successfully",
+                                                bookSeats,
+                                                LocalDateTime.now()));
+        }
 
-    @PostMapping("/show-seat/holdSeats")
-    public ResponseEntity<ApiResponse<List<Long>>> holdSeats(
-            @RequestParam("ticketId") Long ticketId,
-            @RequestParam("holdSeconds") int holdSeconds,
-            @RequestParam(value = "bookingToken", required = false) String bookingToken,
-            @RequestBody List<Long> showSeatIds) {
+        @PostMapping("/unlockSeats/{ticketId}")
+        public ResponseEntity<ApiResponse<Boolean>> unlockSeats(@PathVariable Long ticketId,
+                        @RequestBody List<Long> showSeatIds) {
+                Boolean unlocked = showSeatService.unlockSeats(ticketId, showSeatIds);
+                return ResponseEntity.ok(
+                                new ApiResponse<>(
+                                                200,
+                                                "Seats unlocked successfully",
+                                                unlocked,
+                                                LocalDateTime.now()));
+        }
 
-        List<Long> response = showSeatService.holdSeats(ticketId, showSeatIds, holdSeconds, bookingToken);
-        return ResponseEntity.ok(
-                new ApiResponse<>(
-                        200,
-                        "Seats held successfully",
-                        response,
-                        LocalDateTime.now()
-                )
-        );
-    }
+        @DeleteMapping("/cancelSeats/{ticketId}")
+        public ResponseEntity<ApiResponse<List<Long>>> cancelSeats(@PathVariable Long ticketId) {
+                List<Long> unbookedSeats = showSeatService.cancelSeats(ticketId);
 
-    @PostMapping("/show-seat/releaseHold")
-    public ResponseEntity<ApiResponse<Boolean>> releaseHold(@RequestParam("ticketId") Long ticketId) {
-        Boolean released = showSeatService.releaseHold(ticketId);
-        return ResponseEntity.ok(
-                new ApiResponse<>(
-                        200,
-                        "Holds released successfully",
-                        released,
-                        LocalDateTime.now()
-                )
-        );
-    }
+                return ResponseEntity.ok(
+                                new ApiResponse<>(
+                                                200,
+                                                "Seats cancelled successfully",
+                                                unbookedSeats,
+                                                LocalDateTime.now()));
+        }
 
-    @PostMapping("/show-seat/confirmHold")
-    public ResponseEntity<ApiResponse<List<Long>>> confirmHold(@RequestParam("ticketId") Long ticketId) {
-        List<Long> seatIds = showSeatService.confirmHold(ticketId);
-        return ResponseEntity.ok(
-                new ApiResponse<>(
-                        200,
-                        "Holds confirmed successfully",
-                        seatIds,
-                        LocalDateTime.now()
-                )
-        );
-    }
+        @PostMapping("/show-seat/holdSeats")
+        public ResponseEntity<ApiResponse<List<Long>>> holdSeats(
+                        @RequestParam("ticketId") Long ticketId,
+                        @RequestParam("holdSeconds") int holdSeconds,
+                        @RequestBody List<Long> showSeatIds) {
+
+                List<Long> response = showSeatService.holdSeats(ticketId, showSeatIds, holdSeconds);
+                return ResponseEntity.ok(
+                                new ApiResponse<>(
+                                                200,
+                                                "Seats held successfully",
+                                                response,
+                                                LocalDateTime.now()));
+        }
+
+        @PostMapping("/show-seat/releaseHold")
+        public ResponseEntity<ApiResponse<Boolean>> releaseHold(@RequestParam("ticketId") Long ticketId) {
+
+                Boolean released = showSeatService.releaseHold(ticketId);
+                return ResponseEntity.ok(
+                                new ApiResponse<>(
+                                                200,
+                                                "Holds released successfully",
+                                                released,
+                                                LocalDateTime.now()));
+        }
+
+        @PostMapping("/show-seat/confirmHold")
+        public ResponseEntity<ApiResponse<List<Long>>> confirmHold(@RequestParam("ticketId") Long ticketId) {
+
+                List<Long> seatIds = showSeatService.confirmHold(ticketId);
+                return ResponseEntity.ok(
+                                new ApiResponse<>(
+                                                200,
+                                                "Holds confirmed successfully",
+                                                seatIds,
+                                                LocalDateTime.now()));
+        }
 }
-
