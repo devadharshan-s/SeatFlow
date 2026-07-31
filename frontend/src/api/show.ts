@@ -47,9 +47,12 @@ export const getShowSeats = async (showId: string, status: string = 'ALL'): Prom
   }
 };
 
-export const lockSeats = async (showId: string, seatIds: string[], seconds: number): Promise<any> => {
+export const lockSeats = async (showId: string, seatIds: string[], seconds: number, bookingToken?: string): Promise<any> => {
   try {
-    const response = await showApi.post(`/show-seat/lockSeats/${seconds}`, seatIds.map(Number));
+    const url = bookingToken 
+      ? `/show-seat/lockSeats/${seconds}?bookingToken=${encodeURIComponent(bookingToken)}`
+      : `/show-seat/lockSeats/${seconds}`;
+    const response = await showApi.post(url, seatIds.map(Number));
     return response.data;
   } catch (error) {
     console.error(`Error locking seats for show ID ${showId}:`, error);

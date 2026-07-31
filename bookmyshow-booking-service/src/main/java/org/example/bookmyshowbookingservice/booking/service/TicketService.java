@@ -80,9 +80,7 @@ public class TicketService {
         }
     }
 
-    @Transactional
     public TicketDTO bookTicket(TicketDTO ticketDTO) {
-
         ApiResponse<Object> showResponse = showClient.getShowById(ticketDTO.getShowId());
         if (showResponse == null || showResponse.getData() == null) {
             throw new BookingFailedException("Show validation failed for showId: " + ticketDTO.getShowId());
@@ -122,7 +120,7 @@ public class TicketService {
 
         ticket = ticketRepostiory.save(ticket);
 
-        ApiResponse<List<Long>> heldSeatResponse = seatClient.holdSeats(ticket.getTicketId(), 300, showSeatIds);
+        ApiResponse<List<Long>> heldSeatResponse = seatClient.holdSeats(ticket.getTicketId(), 300, ticketDTO.getBookingToken(), showSeatIds);
         if (heldSeatResponse == null || heldSeatResponse.getData() == null || heldSeatResponse.getData().isEmpty()) {
             throw new BookingFailedException("Can't hold seats, check hold service!");
         }
@@ -148,12 +146,10 @@ public class TicketService {
         }
 
         return modelMapper.map(ticket, TicketDTO.class);
-
     }
 
     @Transactional
     public TicketDTO cancelTicket(long ticketId) {
-
         Ticket ticket = ticketRepostiory.findById(ticketId)
                 .orElseThrow(() -> new TicketNotFoundException("Ticket not found, Check ticket Id!"));
 

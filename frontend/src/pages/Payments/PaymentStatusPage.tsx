@@ -13,6 +13,7 @@ interface LocationState {
     showId: string;
     lockedSeatIds: number[];
     totalAmount: number;
+    bookingToken?: string;
 }
 
 type Stage = 'idle' | 'booking' | 'paying' | 'success' | 'booking-error' | 'payment-error';
@@ -55,7 +56,8 @@ const PaymentStatusPage: React.FC = () => {
             const bookingResponse = await bookTickets(
                 state.showId,
                 state.lockedSeatIds.map(String),
-                userId
+                userId,
+                state.bookingToken
             );
             // bookTickets returns ApiResponse<TicketDTO>; drill into .data if wrapped
             const dto = bookingResponse?.data ?? bookingResponse;

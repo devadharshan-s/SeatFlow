@@ -13,6 +13,7 @@ public class TicketDTO {
     private List<Long> showSeatIds;
     private Long userId;
     private double amountPaid;
+    private String bookingToken;
 
 }
 

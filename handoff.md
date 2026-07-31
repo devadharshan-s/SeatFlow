@@ -82,3 +82,51 @@ Navigate to `http://localhost:5173/movies` (or port `5174` depending on local po
 * Click a movie to view its details.
 * View showtimes grouped under their actual **Theatre Names**.
 * Select seats, reserve them, and complete a test checkout.
+
+---
+
+## 🛠️ Update: Ticket 01, 02, and 03 Implementations & Redis/Transaction Resiliency
+
+### 1. 📢 Aspect-Oriented Programming (AOP) Global Logging System (Ticket 01)
+* **Design & Integration:** Refactored logging to prevent code pollution in core service modules. Declared `spring-boot-starter-aop` as a global dependency in the parent [pom.xml](file:///c:/Users/devad/IdeaProjects/bookmyshow-microservices/pom.xml).
+* **Logging Aspect:** Designed and deployed `LoggingAspect.java` inside both the [show-service](file:///c:/Users/devad/IdeaProjects/bookmyshow-microservices/bookmyshow-show-service/src/main/java/org/example/bookmyshowshowservice/common/aspect/LoggingAspect.java) and [booking-service](file:///c:/Users/devad/IdeaProjects/bookmyshow-microservices/bookmyshow-booking-service/src/main/java/org/example/bookmyshowbookingservice/common/aspect/LoggingAspect.java). The aspect automatically intercepts `@Service` and `@RestController` methods, providing clear entry parameters, return outputs, thrown exceptions, and precise execution latency tracking (took X ms).
+
+### 2. 🔑 Decentralized Environment Profiles & Properties Isolation (Ticket 02)
+* **Goal:** Avoid committing exposed cloud database and Redis credentials to Git.
+* **Profiles Setup:** Configured `spring.profiles.active=local` by default. Modified core `application.properties` to utilize generic default placeholders (e.g. `${REDIS_HOST:localhost}`).
+* **Isolated Environment files:** Created git-ignored `application-local.properties` files in both [show-service](file:///c:/Users/devad/IdeaProjects/bookmyshow-microservices/bookmyshow-show-service/src/main/resources/application-local.properties) and [booking-service](file:///c:/Users/devad/IdeaProjects/bookmyshow-microservices/bookmyshow-booking-service/src/main/resources/application-local.properties), locking Redis passwords securely on local machines.
+
+### 3. 🔍 Transaction Isolation Deadlock & Redis Seat Hold Resolution (Ticket 03)
+* **Keycloak Local Development Fallback:** Refactored `ServiceTokenProvider.java` in [booking-service](file:///c:/Users/devad/IdeaProjects/bookmyshow-microservices/bookmyshow-booking-service/src/main/java/org/example/bookmyshowbookingservice/config/ServiceTokenProvider.java) with a try-catch fallback. If the Keycloak auth server is offline, it dynamically switches to a `mock-service-token` fallback, allowing local offline testing without active OIDC instances.
+* **Transaction Deadlock Fix:** Diagnosed a transactional deadlock isolation level issue in `TicketService.java`. When `bookTicket` was annotated with `@Transactional`, the database row was uncommitted during the Feign callback to `/show-seat/holdSeats`. The show-service called back to booking-service `/validateTicket/{ticketId}` on a separate thread, which could not see the uncommitted ticket and threw `TicketNotFoundException`. Removing `@Transactional` from `bookTicket()` allows immediate commit of the ticket, preventing deadlock.
+* **Redisson Lua Argument StringCodec Fix:** Discovered that Redisson `eval` defaults to binary serialization, causing Redis Lua script execution to fail with `ERR value is not an integer or out of range`. Added `org.redisson.client.codec.StringCodec.INSTANCE` and cast keys using Java type-witness `List.<Object>of(...)` in [SeatHoldService.java](file:///c:/Users/devad/IdeaProjects/bookmyshow-microservices/bookmyshow-show-service/src/main/java/org/example/bookmyshowshowservice/show/service/SeatHoldService.java). This forces Redisson to encode values as raw string numbers (e.g. ARGV[2] for PX ttl), enabling atomic seat reservations successfully.
+* **End-to-End Test Status:** Executed `.scratch/test_booking.js` and confirmed successful ticket booking with HTTP `200 OK`.
+
+### 4. 🎛️ Complete Standalone Local Properties Override
+* **Action:** Populated `application-local.properties` in both [show-service](file:///c:/Users/devad/IdeaProjects/bookmyshow-microservices/bookmyshow-show-service/src/main/resources/application-local.properties) and [booking-service](file:///c:/Users/devad/IdeaProjects/bookmyshow-microservices/bookmyshow-booking-service/src/main/resources/application-local.properties) with the **complete, full-length properties configurations** from the previous commit, but with the remote Redis cloud host/port/password overridden.
+* **Why:** This ensures that even if profile inheritance is disabled or skipped locally, the active `local` profile has all the database settings, Hikari pools, Eureka settings, and security endpoints fully populated.
+
+### 🔌 5. Vite Development Server Proxy & React Safeguards
+* **Vite Proxy Resolution:** Fixed a problem where Vite's dev server got stuck and started returning the fallback static `index.html` for all API calls (e.g. `/movie/*`, `/show/*`). Force-terminated the orphaned Node process and booted it afresh to restore correct API proxying.
+* **React Render Safeguards:** Added a defensive check `(movie.genres || [])` in [MovieListPage.tsx](file:///c:/Users/devad/IdeaProjects/bookmyshow-microservices/frontend/src/pages/Movies/MovieListPage.tsx) to prevent React DOM rendering crashes if any movie in the database has a `null` or missing genres collection.
+
+---
+
+## 🔒 Refactoring: Redis-First Transient Seat Selection Locking (Approved)
+
+We are refactoring the seat selection locking seam (`/lockSeats`) to manage transient seat locks in Redis, completely bypassing the MySQL database writes during the initial seat selection phase.
+
+### Key Architecture Components
+1. **Idempotency Token (`bookingToken`):** 
+   - A frontend-generated UUID (`bookingToken`) binds the initial selection lock to the checkout session.
+   - Saves selection locks in Redis as `seat:lock:<showSeatId>` -> `bookingToken` with a 300s TTL.
+2. **Atomic Lua Upgrade Path:**
+   - In `holdSeats(...)`, the Redisson Lua script checks if the seat selection lock matches the `bookingToken` before upgrading it to a ticket hold (`seat:hold:<showSeatId>`) and atomically deletes the `seat:lock:<showSeatId>` key to prevent stale locks.
+3. **Resilience4j Circuit Breaker:**
+   - Decorated `lockSeats` in `ShowSeatService` with `@CircuitBreaker(name = "redisLock", fallbackMethod = "lockSeatsFallback")`.
+   - In case Redis goes down, the system gracefully falls back to the database-backed `LockService` and writes to the MySQL `locked_until` column without interrupting the user.
+4. **Codebase Cleanup:**
+   - Deletes the legacy `LockService.java` file and removes database fallback logic/checks in `ShowSeatService.java` and `ShowSeatController.java` to deepen the Redis-first locking module.
+
+
+

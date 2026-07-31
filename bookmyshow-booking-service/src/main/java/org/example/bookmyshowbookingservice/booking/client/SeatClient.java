@@ -34,6 +34,7 @@ public interface SeatClient {
     ApiResponse<List<Long>> holdSeats(
             @RequestParam("ticketId") Long ticketId,
             @RequestParam("holdSeconds") int holdSeconds,
+            @RequestParam(value = "bookingToken", required = false) String bookingToken,
             @RequestBody List<Long> seatIds);
 
     @PostMapping("/show-seat/releaseHold")

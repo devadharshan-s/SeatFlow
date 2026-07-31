@@ -23,6 +23,17 @@ const ShowBookingPage: React.FC = () => {
     const [loading, setLoading] = useState<boolean>(true);
     const [error, setError] = useState<string | null>(null);
     const [locking, setLocking] = useState<boolean>(false);
+    const [bookingToken] = useState<string>(() => {
+        try {
+            return window.crypto.randomUUID();
+        } catch {
+            return 'xxxx-xxxx-4xxx-yxxx'.replace(/[xy]/g, (c) => {
+                const r = (Math.random() * 16) | 0;
+                const v = c === 'x' ? r : (r & 0x3) | 0x8;
+                return v.toString(16);
+            });
+        }
+    });
 
     const isPollingActive = useRef<boolean>(true);
 
@@ -99,7 +110,7 @@ const ShowBookingPage: React.FC = () => {
             if (!Array.isArray(showSeatIds) || showSeatIds.length === 0) {
                 throw new Error("Could not resolve seats");
             }
-            await lockSeats(showId, showSeatIds.map(String), LOCK_DURATION_SECONDS);
+            await lockSeats(showId, showSeatIds.map(String), LOCK_DURATION_SECONDS, bookingToken);
             setLockedSeatIds(selectedSeats);
             setLockTimer(LOCK_DURATION_SECONDS);
             fetchSeats();
@@ -114,7 +125,7 @@ const ShowBookingPage: React.FC = () => {
     const handleProceedToPayment = () => {
         if (lockedSeatIds.length === 0 || lockTimer === 0) return;
         navigate('/payments/status', {
-            state: { showId, lockedSeatIds, totalAmount: calculateTotalAmount() },
+            state: { showId, lockedSeatIds, totalAmount: calculateTotalAmount(), bookingToken },
         });
     };
 

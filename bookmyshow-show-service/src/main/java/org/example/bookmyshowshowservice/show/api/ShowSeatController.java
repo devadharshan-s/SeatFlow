@@ -2,7 +2,6 @@ package org.example.bookmyshowshowservice.show.api;
 
 import org.example.bookmyshowshowservice.common.dto.ApiResponse;
 import org.example.bookmyshowshowservice.show.api.dto.SeatAvailabilityResponse;
-import org.example.bookmyshowshowservice.show.service.LockService;
 import org.example.bookmyshowshowservice.show.service.ShowSeatService;
 import org.example.bookmyshowshowservice.show.service.SeatHoldService;
 import lombok.RequiredArgsConstructor;
@@ -19,7 +18,6 @@ import java.util.List;
 public class ShowSeatController {
 
     private final ShowSeatService showSeatService;
-    private final LockService lockService;
     private final SeatHoldService seatHoldService;
 
     @PostMapping("/shows/{showId}/resolve-seat-ids")
@@ -66,16 +64,11 @@ public class ShowSeatController {
     }
 
     @PostMapping("/lockSeats/{seconds}")
-    public ResponseEntity<ApiResponse<List<Long>>> lockSeats(@RequestBody List<Long> showSeatIds, @PathVariable int seconds) {
-        List<Long> response = lockService.lockSeats(showSeatIds, seconds);
-        if (response != null && !response.isEmpty()) {
-            try {
-                Long showId = showSeatService.getShowIdForSeat(response.get(0));
-                showSeatService.evictShowSeatsCache(showId);
-            } catch (Exception ex) {
-                log.error("Failed to evict showSeatsCache on lockSeats", ex);
-            }
-        }
+    public ResponseEntity<ApiResponse<List<Long>>> lockSeats(
+            @RequestBody List<Long> showSeatIds,
+            @PathVariable int seconds,
+            @RequestParam(value = "bookingToken", required = false) String bookingToken) {
+        List<Long> response = showSeatService.lockSeats(showSeatIds, seconds, bookingToken);
         return ResponseEntity.ok(
                 new ApiResponse<>(
                         200,
@@ -87,9 +80,7 @@ public class ShowSeatController {
 
     @PostMapping("/bookSeats/{ticketId}")
     public ResponseEntity<ApiResponse<List<Long>>> bookSeats(@PathVariable Long ticketId, @RequestBody List<Long> showSeatIds) {
-
         List<Long> bookSeats = showSeatService.bookSeats(showSeatIds, ticketId);
-
         return ResponseEntity.ok(
                 new ApiResponse<>(
                         200,
@@ -116,7 +107,6 @@ public class ShowSeatController {
     @DeleteMapping("/cancelSeats/{ticketId}")
     public ResponseEntity<ApiResponse<List<Long>>> cancelSeats(@PathVariable Long ticketId) {
         List<Long> unbookedSeats = showSeatService.cancelSeats(ticketId);
-
         return ResponseEntity.ok(
                 new ApiResponse<>(
                         200,
@@ -131,9 +121,10 @@ public class ShowSeatController {
     public ResponseEntity<ApiResponse<List<Long>>> holdSeats(
             @RequestParam("ticketId") Long ticketId,
             @RequestParam("holdSeconds") int holdSeconds,
+            @RequestParam(value = "bookingToken", required = false) String bookingToken,
             @RequestBody List<Long> showSeatIds) {
 
-        List<Long> response = showSeatService.holdSeats(ticketId, showSeatIds, holdSeconds);
+        List<Long> response = showSeatService.holdSeats(ticketId, showSeatIds, holdSeconds, bookingToken);
         return ResponseEntity.ok(
                 new ApiResponse<>(
                         200,
@@ -146,7 +137,6 @@ public class ShowSeatController {
 
     @PostMapping("/show-seat/releaseHold")
     public ResponseEntity<ApiResponse<Boolean>> releaseHold(@RequestParam("ticketId") Long ticketId) {
-
         Boolean released = showSeatService.releaseHold(ticketId);
         return ResponseEntity.ok(
                 new ApiResponse<>(
@@ -160,7 +150,6 @@ public class ShowSeatController {
 
     @PostMapping("/show-seat/confirmHold")
     public ResponseEntity<ApiResponse<List<Long>>> confirmHold(@RequestParam("ticketId") Long ticketId) {
-
         List<Long> seatIds = showSeatService.confirmHold(ticketId);
         return ResponseEntity.ok(
                 new ApiResponse<>(

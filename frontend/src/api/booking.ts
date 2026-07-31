@@ -17,13 +17,14 @@ bookingApi.interceptors.request.use((config) => {
   return config;
 });
 
-export const bookTickets = async (showId: string, seatIds: string[], userId: string): Promise<any> => {
+export const bookTickets = async (showId: string, seatIds: string[], userId: string, bookingToken?: string): Promise<any> => {
   try {
     const numUserId = !isNaN(Number(userId)) && userId !== '' ? Number(userId) : null;
     const response = await bookingApi.post('/bookmyshow-booking-service/bookTickets', {
       showId: Number(showId),
       seatIds: seatIds.map(Number),
-      userId: numUserId
+      userId: numUserId,
+      bookingToken
     });
     return response.data; // Expecting TicketResponseDTO
   } catch (error) {
