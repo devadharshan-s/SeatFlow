@@ -21,8 +21,8 @@ public interface SeatClient {
     @PostMapping("/lockSeats/{seconds}")
     ApiResponse<List<Long>> lockSeats(@PathVariable("seconds") int seconds, @RequestBody List<Long> seatIds);
 
-    @PostMapping("/bookSeats/{ticketId}")
-    ApiResponse<List<Long>> bookSeats(@PathVariable("ticketId") long ticketId, @RequestBody List<Long> seatIds);
+    @PostMapping("/bookSeats/{bookingToken}")
+    ApiResponse<List<Long>> bookSeats(@PathVariable("bookingToken") String bookingToken, @RequestBody List<Long> seatIds);
 
     @PostMapping("/unlockSeats/{ticketId}")
     ApiResponse<Boolean> unlockSeats(@PathVariable("ticketId") Long ticketId, @RequestBody List<Long> seatIds);
@@ -32,14 +32,13 @@ public interface SeatClient {
 
     @PostMapping("/show-seat/holdSeats")
     ApiResponse<List<Long>> holdSeats(
-            @RequestParam("ticketId") Long ticketId,
+            @RequestParam("bookingToken") String bookingToken,
             @RequestParam("holdSeconds") int holdSeconds,
-            @RequestParam(value = "bookingToken", required = false) String bookingToken,
             @RequestBody List<Long> seatIds);
 
     @PostMapping("/show-seat/releaseHold")
-    ApiResponse<Boolean> releaseHold(@RequestParam("ticketId") Long ticketId);
+    ApiResponse<Boolean> releaseHold(@RequestParam("bookingToken") String bookingToken);
 
     @PostMapping("/show-seat/confirmHold")
-    ApiResponse<List<Long>> confirmHold(@RequestParam("ticketId") Long ticketId);
+    ApiResponse<List<Long>> confirmHold(@RequestParam("bookingToken") String bookingToken);
 }

@@ -50,8 +50,8 @@ public class SeatHoldService {
      *
      * @return the list of show seat ids that were successfully held
      */
-    public List<Long> holdSeats(Long ticketId, List<Long> showSeatIds, int holdSeconds) {
-        validateTicketId(ticketId);
+    public List<Long> holdSeats(String bookingToken, List<Long> showSeatIds, int holdSeconds) {
+        validateBookingToken(bookingToken);
         if (showSeatIds == null || showSeatIds.isEmpty()) {
             throw new ShowSeatNotFoundException("Show seat ids must not be empty");
         }
@@ -70,9 +70,9 @@ public class SeatHoldService {
             }
         }
 
-        String owner = String.valueOf(ticketId);
+        String owner = bookingToken;
         long ttlMs = holdSeconds * 1000L;
-        String ticketKey = ticketHoldKey(ticketId);
+        String ticketKey = TICKET_HOLD_KEY_PREFIX + bookingToken;
         String joinedSeats = joinSeatIds(showSeatIds);
 
         List<Object> keys = new ArrayList<>();
@@ -107,11 +107,15 @@ public class SeatHoldService {
                 joinedSeats);
 
         if (result == null || result == 0) {
-            throw new SeatOperationException("Failed to hold one or more seats: already held or locked");
+            throw new SeatOperationException("One or more seats are currently on hold by another user");
         }
 
-        log.info("Held {} seats for ticket {} atomically using Redisson Lua script", showSeatIds.size(), ticketId);
+        log.info("Held {} show seats for token {} for {} seconds using Redisson Lua script", showSeatIds.size(), bookingToken, holdSeconds);
         return showSeatIds;
+    }
+
+    public List<Long> holdSeats(Long ticketId, List<Long> showSeatIds, int holdSeconds) {
+        return holdSeats(String.valueOf(ticketId), showSeatIds, holdSeconds);
     }
 
     /**
@@ -122,10 +126,10 @@ public class SeatHoldService {
      *
      * @return true if a hold actually existed for the ticket
      */
-    public boolean releaseHold(Long ticketId) {
-        validateTicketId(ticketId);
-        String owner = String.valueOf(ticketId);
-        String ticketKey = ticketHoldKey(ticketId);
+    public Boolean releaseHold(String bookingToken) {
+        validateBookingToken(bookingToken);
+        String owner = bookingToken;
+        String ticketKey = TICKET_HOLD_KEY_PREFIX + bookingToken;
 
         String luaScript = "-- Step 1: Retrieve list of seat IDs associated with this ticket\n" +
                 "local joined = redis.call('get', KEYS[1])\n" +
@@ -154,8 +158,12 @@ public class SeatHoldService {
                 SEAT_HOLD_KEY_PREFIX);
 
         boolean released = result != null && result == 1;
-        log.info("Released holds for ticket {} atomically using Redisson Lua: {}", ticketId, released);
+        log.info("Released holds for token {} atomically using Redisson Lua: {}", bookingToken, released);
         return released;
+    }
+
+    public Boolean releaseHold(Long ticketId) {
+        return releaseHold(String.valueOf(ticketId));
     }
 
     /**
@@ -163,14 +171,14 @@ public class SeatHoldService {
      * holds for this
      * ticket and return the held seat ids.
      */
-    public List<Long> confirmHold(Long ticketId) {
-        validateTicketId(ticketId);
-        String owner = String.valueOf(ticketId);
-        String ticketKey = ticketHoldKey(ticketId);
+    public List<Long> confirmHold(String bookingToken) {
+        validateBookingToken(bookingToken);
+        String owner = bookingToken;
+        String ticketKey = TICKET_HOLD_KEY_PREFIX + bookingToken;
 
         String joined = stringRedisTemplate.opsForValue().get(ticketKey);
         if (joined == null) {
-            throw new SeatOperationException("No active hold found for ticket: " + ticketId);
+            throw new SeatOperationException("No active hold found for token: " + bookingToken);
         }
 
         List<Long> seatIds = parseSeatIds(joined);
@@ -201,8 +209,12 @@ public class SeatHoldService {
                 owner,
                 SEAT_HOLD_KEY_PREFIX);
 
-        log.info("Confirmed and cleared holds for ticket {} atomically using Redisson Lua", ticketId);
+        log.info("Confirmed and cleared holds for token {} atomically using Redisson Lua", bookingToken);
         return seatIds;
+    }
+
+    public List<Long> confirmHold(Long ticketId) {
+        return confirmHold(String.valueOf(ticketId));
     }
 
     /**
@@ -218,6 +230,12 @@ public class SeatHoldService {
             return null;
         }
         return LocalDateTime.now().plusSeconds(secondsRemaining);
+    }
+
+    private void validateBookingToken(String token) {
+        if (token == null || token.isBlank()) {
+            throw new TicketNotFoundException("Invalid booking token!");
+        }
     }
 
     private void validateTicketId(Long ticketId) {

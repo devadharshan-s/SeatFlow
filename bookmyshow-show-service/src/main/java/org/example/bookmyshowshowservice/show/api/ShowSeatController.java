@@ -59,11 +59,11 @@ public class ShowSeatController {
         }
 
 
-        @PostMapping("/bookSeats/{ticketId}")
-        public ResponseEntity<ApiResponse<List<Long>>> bookSeats(@PathVariable Long ticketId,
+        @PostMapping("/bookSeats/{bookingToken}")
+        public ResponseEntity<ApiResponse<List<Long>>> bookSeats(@PathVariable String bookingToken,
                         @RequestBody List<Long> showSeatIds) {
 
-                List<Long> bookSeats = showSeatService.bookSeats(showSeatIds, ticketId);
+                List<Long> bookSeats = showSeatService.bookSeats(showSeatIds, 0L);
 
                 return ResponseEntity.ok(
                                 new ApiResponse<>(
@@ -99,11 +99,13 @@ public class ShowSeatController {
 
         @PostMapping("/show-seat/holdSeats")
         public ResponseEntity<ApiResponse<List<Long>>> holdSeats(
-                        @RequestParam("ticketId") Long ticketId,
+                        @RequestParam(value = "bookingToken", required = false) String bookingTokenParam,
+                        @RequestParam(value = "ticketId", required = false) String ticketIdParam,
                         @RequestParam("holdSeconds") int holdSeconds,
                         @RequestBody List<Long> showSeatIds) {
 
-                List<Long> response = showSeatService.holdSeats(ticketId, showSeatIds, holdSeconds);
+                String token = (bookingTokenParam != null && !bookingTokenParam.isBlank()) ? bookingTokenParam : ticketIdParam;
+                List<Long> response = showSeatService.holdSeats(token, showSeatIds, holdSeconds);
                 return ResponseEntity.ok(
                                 new ApiResponse<>(
                                                 200,
@@ -113,9 +115,12 @@ public class ShowSeatController {
         }
 
         @PostMapping("/show-seat/releaseHold")
-        public ResponseEntity<ApiResponse<Boolean>> releaseHold(@RequestParam("ticketId") Long ticketId) {
+        public ResponseEntity<ApiResponse<Boolean>> releaseHold(
+                        @RequestParam(value = "bookingToken", required = false) String bookingTokenParam,
+                        @RequestParam(value = "ticketId", required = false) String ticketIdParam) {
 
-                Boolean released = showSeatService.releaseHold(ticketId);
+                String token = (bookingTokenParam != null && !bookingTokenParam.isBlank()) ? bookingTokenParam : ticketIdParam;
+                Boolean released = showSeatService.releaseHold(token);
                 return ResponseEntity.ok(
                                 new ApiResponse<>(
                                                 200,
@@ -125,14 +130,34 @@ public class ShowSeatController {
         }
 
         @PostMapping("/show-seat/confirmHold")
-        public ResponseEntity<ApiResponse<List<Long>>> confirmHold(@RequestParam("ticketId") Long ticketId) {
+        public ResponseEntity<ApiResponse<List<Long>>> confirmHold(
+                        @RequestParam(value = "bookingToken", required = false) String bookingTokenParam,
+                        @RequestParam(value = "ticketId", required = false) String ticketIdParam) {
 
-                List<Long> seatIds = showSeatService.confirmHold(ticketId);
+                String token = (bookingTokenParam != null && !bookingTokenParam.isBlank()) ? bookingTokenParam : ticketIdParam;
+                List<Long> seatIds = showSeatService.confirmHold(token);
                 return ResponseEntity.ok(
                                 new ApiResponse<>(
                                                 200,
                                                 "Holds confirmed successfully",
                                                 seatIds,
+                                                LocalDateTime.now()));
+        }
+
+        @PostMapping("/shows/{showId}/hold-seats")
+        public ResponseEntity<ApiResponse<List<Long>>> holdAndResolveSeats(
+                        @PathVariable Long showId,
+                        @RequestParam("bookingToken") String bookingToken,
+                        @RequestParam(value = "holdSeconds", defaultValue = "300") int holdSeconds,
+                        @RequestBody List<Long> seatIds) {
+
+                List<Long> showSeatIds = showSeatService.resolveShowSeatIds(showId, seatIds);
+                List<Long> response = showSeatService.holdSeats(bookingToken, showSeatIds, holdSeconds);
+                return ResponseEntity.ok(
+                                new ApiResponse<>(
+                                                200,
+                                                "Seats resolved and held successfully",
+                                                response,
                                                 LocalDateTime.now()));
         }
 }

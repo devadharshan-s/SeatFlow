@@ -246,9 +246,9 @@ public class ShowSeatService {
         }
     }
 
-    @CircuitBreaker(name = "redisHold", fallbackMethod = "holdSeatsFallback")
-    public List<Long> holdSeats(Long ticketId, List<Long> showSeatIds, int holdSeconds) {
-        List<Long> response = seatHoldService.holdSeats(ticketId, showSeatIds, holdSeconds);
+    @CircuitBreaker(name = "redisHold", fallbackMethod = "holdSeatsTokenFallback")
+    public List<Long> holdSeats(String bookingToken, List<Long> showSeatIds, int holdSeconds) {
+        List<Long> response = seatHoldService.holdSeats(bookingToken, showSeatIds, holdSeconds);
         if (response != null && !response.isEmpty()) {
             try {
                 Long showId = getShowIdForSeat(response.get(0));
@@ -260,44 +260,64 @@ public class ShowSeatService {
         return response;
     }
 
-    public List<Long> holdSeatsFallback(Long ticketId, List<Long> showSeatIds, int holdSeconds, Throwable t) {
-        log.error("Redis holdSeats failed, circuit breaker active. Failing fast. Error: {}", t.getMessage());
+    public List<Long> holdSeatsTokenFallback(String bookingToken, List<Long> showSeatIds, int holdSeconds, Throwable t) {
+        log.error("Redis holdSeats failed for token {}, circuit breaker active. Error: {}", bookingToken, t.getMessage());
         throw new SeatOperationException("Booking service holds are currently unavailable. Please try again later.");
     }
 
-    @CircuitBreaker(name = "redisRelease", fallbackMethod = "releaseHoldFallback")
-    public Boolean releaseHold(Long ticketId) {
-        return seatHoldService.releaseHold(ticketId);
+    public List<Long> holdSeats(Long ticketId, List<Long> showSeatIds, int holdSeconds) {
+        return holdSeats(String.valueOf(ticketId), showSeatIds, holdSeconds);
     }
 
-    public Boolean releaseHoldFallback(Long ticketId, Throwable t) {
-        log.error(
-                "Redis releaseHold failed for ticketId: {}, ignoring since MySQL locks expire automatically. Error: {}",
-                ticketId, t.getMessage());
+    public List<Long> holdSeatsFallback(Long ticketId, List<Long> showSeatIds, int holdSeconds, Throwable t) {
+        return holdSeatsTokenFallback(String.valueOf(ticketId), showSeatIds, holdSeconds, t);
+    }
+
+    @CircuitBreaker(name = "redisRelease", fallbackMethod = "releaseHoldTokenFallback")
+    public Boolean releaseHold(String bookingToken) {
+        return seatHoldService.releaseHold(bookingToken);
+    }
+
+    public Boolean releaseHoldTokenFallback(String bookingToken, Throwable t) {
+        log.error("Redis releaseHold failed for token: {}, ignoring. Error: {}", bookingToken, t.getMessage());
         return true;
     }
 
-    @CircuitBreaker(name = "redisConfirm", fallbackMethod = "confirmHoldFallback")
+    public Boolean releaseHold(Long ticketId) {
+        return releaseHold(String.valueOf(ticketId));
+    }
+
+    public Boolean releaseHoldFallback(Long ticketId, Throwable t) {
+        return releaseHoldTokenFallback(String.valueOf(ticketId), t);
+    }
+
+    @CircuitBreaker(name = "redisConfirm", fallbackMethod = "confirmHoldTokenFallback")
+    public List<Long> confirmHold(String bookingToken) {
+        return seatHoldService.confirmHold(bookingToken);
+    }
+
+    public List<Long> confirmHoldTokenFallback(String bookingToken, Throwable t) {
+        log.error("Redis confirmHold failed for token: {}, Error: {}", bookingToken, t.getMessage());
+        return List.of();
+    }
+
     public List<Long> confirmHold(Long ticketId) {
-        return seatHoldService.confirmHold(ticketId);
+        return confirmHold(String.valueOf(ticketId));
     }
 
     public List<Long> confirmHoldFallback(Long ticketId, Throwable t) {
-        log.error("Redis confirmHold failed for ticketId: {}, falling back to database query. Error: {}", ticketId,
-                t.getMessage());
-        try {
-            List<Long> seatIds = getShowSeatsByTicketId(ticketId);
-            unlockSeats(ticketId, seatIds);
-            return seatIds;
-        } catch (Exception e) {
-            return List.of();
-        }
+        return confirmHoldTokenFallback(String.valueOf(ticketId), t);
     }
 
     private void validateTicketId(Long ticketId) {
         if (ticketId == null || ticketId <= 0) {
             throw new TicketNotFoundException("Ticket not found, Check ticket Id!");
         }
-        ticketClient.validateTicketExists(ticketId);
+    }
+
+    private void validateBookingToken(String bookingToken) {
+        if (bookingToken == null || bookingToken.isBlank()) {
+            throw new TicketNotFoundException("Booking token is invalid!");
+        }
     }
 }

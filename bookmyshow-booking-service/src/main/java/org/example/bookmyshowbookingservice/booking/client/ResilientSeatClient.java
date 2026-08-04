@@ -13,13 +13,23 @@ import java.util.List;
 /**
  * Resilient delegate wrapper around the Feign {@link SeatClient}.
  *
- * <p>Adds Resilience4j {@code @Retry} (with exponential backoff) and {@code @CircuitBreaker}
- * to downstream calls. Since Feign fallbacks swallow exceptions and return {@link ApiResponse}
- * objects with error status codes, this wrapper inspects the returned status and throws
- * {@link DownstreamServiceException} to trigger Resilience4j's exception-driven retry logic.</p>
+ * <p>
+ * Adds Resilience4j {@code @Retry} (with exponential backoff) and
+ * {@code @CircuitBreaker}
+ * to downstream calls. Since Feign fallbacks swallow exceptions and return
+ * {@link ApiResponse}
+ * objects with error status codes, this wrapper inspects the returned status
+ * and throws
+ * {@link DownstreamServiceException} to trigger Resilience4j's exception-driven
+ * retry logic.
+ * </p>
  *
- * <p><strong>Interview pattern:</strong> Decorator/Delegate pattern — adds resilience behavior
- * around an existing client without modifying the Feign interface (Open/Closed Principle).</p>
+ * <p>
+ * <strong>Interview pattern:</strong> Decorator/Delegate pattern — adds
+ * resilience behavior
+ * around an existing client without modifying the Feign interface (Open/Closed
+ * Principle).
+ * </p>
  */
 @Service
 @RequiredArgsConstructor
@@ -31,66 +41,84 @@ public class ResilientSeatClient {
     @Retry(name = "seatService")
     @CircuitBreaker(name = "seatServiceCircuit")
     public ApiResponse<List<Long>> resolveShowSeatIds(Long showId, List<Long> seatIds) {
+
         ApiResponse<List<Long>> response = seatClient.resolveShowSeatIds(showId, seatIds);
         validateResponse(response, "resolveShowSeatIds");
         return response;
+
     }
 
     @Retry(name = "seatService")
     @CircuitBreaker(name = "seatServiceCircuit")
-    public ApiResponse<List<Long>> holdSeats(Long ticketId, int holdSeconds, String bookingToken, List<Long> seatIds) {
-        ApiResponse<List<Long>> response = seatClient.holdSeats(ticketId, holdSeconds, bookingToken, seatIds);
+    public ApiResponse<List<Long>> holdSeats(String bookingToken, int holdSeconds, List<Long> seatIds) {
+
+        ApiResponse<List<Long>> response = seatClient.holdSeats(bookingToken, holdSeconds, seatIds);
         validateResponse(response, "holdSeats");
         return response;
+
     }
 
-    // bookSeats is idempotent (same ticketId re-books safely), so @Retry is safe here
+    // bookSeats is idempotent (same bookingToken re-books safely), so @Retry is safe
+    // here
     @Retry(name = "seatService")
     @CircuitBreaker(name = "seatServiceCircuit")
-    public ApiResponse<List<Long>> bookSeats(Long ticketId, List<Long> seatIds) {
-        ApiResponse<List<Long>> response = seatClient.bookSeats(ticketId, seatIds);
+    public ApiResponse<List<Long>> bookSeats(String bookingToken, List<Long> seatIds) {
+
+        ApiResponse<List<Long>> response = seatClient.bookSeats(bookingToken, seatIds);
         validateResponse(response, "bookSeats");
         return response;
+
     }
 
     @Retry(name = "seatService")
     @CircuitBreaker(name = "seatServiceCircuit")
     public ApiResponse<Boolean> unlockSeats(Long ticketId, List<Long> seatIds) {
+
         ApiResponse<Boolean> response = seatClient.unlockSeats(ticketId, seatIds);
         validateResponse(response, "unlockSeats");
         return response;
+
     }
 
     @Retry(name = "seatService")
     @CircuitBreaker(name = "seatServiceCircuit")
     public ApiResponse<List<Long>> cancelSeats(Long ticketId) {
+
         ApiResponse<List<Long>> response = seatClient.cancelSeats(ticketId);
         validateResponse(response, "cancelSeats");
         return response;
+
     }
 
     @Retry(name = "seatService")
     @CircuitBreaker(name = "seatServiceCircuit")
-    public ApiResponse<Boolean> releaseHold(Long ticketId) {
-        ApiResponse<Boolean> response = seatClient.releaseHold(ticketId);
+    public ApiResponse<Boolean> releaseHold(String bookingToken) {
+
+        ApiResponse<Boolean> response = seatClient.releaseHold(bookingToken);
         validateResponse(response, "releaseHold");
         return response;
+
     }
 
     @Retry(name = "seatService")
     @CircuitBreaker(name = "seatServiceCircuit")
-    public ApiResponse<List<Long>> confirmHold(Long ticketId) {
-        ApiResponse<List<Long>> response = seatClient.confirmHold(ticketId);
+    public ApiResponse<List<Long>> confirmHold(String bookingToken) {
+
+        ApiResponse<List<Long>> response = seatClient.confirmHold(bookingToken);
         validateResponse(response, "confirmHold");
         return response;
+
     }
 
     /**
      * Bridges Feign fallback semantics with Resilience4j's exception-driven model.
-     * Feign fallbacks return ApiResponse with error status codes instead of throwing;
-     * this method converts those soft failures into thrown exceptions so @Retry can detect them.
+     * Feign fallbacks return ApiResponse with error status codes instead of
+     * throwing;
+     * this method converts those soft failures into thrown exceptions so @Retry can
+     * detect them.
      */
     private void validateResponse(ApiResponse<?> response, String methodName) {
+
         if (response == null) {
             throw new DownstreamServiceException(503, "Null response from show-service for " + methodName);
         }
@@ -99,5 +127,6 @@ public class ResilientSeatClient {
                     methodName, response.getStatus(), response.getMessage());
             throw new DownstreamServiceException(response.getStatus(), response.getMessage());
         }
+
     }
 }

@@ -1,16 +1,14 @@
 package org.example.bookmyshowbookingservice.booking.api;
 
+import lombok.RequiredArgsConstructor;
 import org.example.bookmyshowbookingservice.booking.api.dto.TicketDTO;
 import org.example.bookmyshowbookingservice.booking.service.TicketService;
 import org.example.bookmyshowbookingservice.common.annotation.RateLimit;
 import org.example.bookmyshowbookingservice.common.dto.ApiResponse;
-import org.example.bookmyshowbookingservice.booking.api.dto.SeatAvailabilityResponse;
-import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.concurrent.TimeUnit;
 
 @RestController
@@ -18,21 +16,6 @@ import java.util.concurrent.TimeUnit;
 public class TicketController {
 
         private final TicketService ticketService;
-
-        @GetMapping("/selectSeats/{showId}")
-        @RateLimit(rate = 15, rateInterval = 60, rateIntervalUnit = TimeUnit.SECONDS)
-        public ResponseEntity<ApiResponse<List<SeatAvailabilityResponse>>> getSeats(@PathVariable long showId,
-                        @RequestParam(defaultValue = "ALL") String status) {
-
-                List<SeatAvailabilityResponse> response = ticketService.getSeats(showId, status);
-
-                return ResponseEntity.ok(
-                                new ApiResponse<>(
-                                                200,
-                                                "✔ Seats fetched Successfully!",
-                                                response,
-                                                LocalDateTime.now()));
-        }
 
         @DeleteMapping("/getTickets/{showId}")
         public void deleteTicketsByShowId(@PathVariable Long showId) {
