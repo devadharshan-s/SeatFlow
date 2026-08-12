@@ -10,6 +10,9 @@ import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.concurrent.TimeUnit;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+
 
 @RestController
 @RequiredArgsConstructor
@@ -26,20 +29,33 @@ public class TicketController {
         public void validateTicket(@PathVariable Long ticketId) {
                 ticketService.validateTicketExists(ticketId);
         }
-
-        @PostMapping("/bookTickets")
+        
+        @PostMapping("/reserveSeats")
         @RateLimit(rate = 3, rateInterval = 60, rateIntervalUnit = TimeUnit.SECONDS)
-        public ResponseEntity<ApiResponse<TicketDTO>> bookTicket(@RequestBody TicketDTO ticketDTO) {
-                TicketDTO ticket = ticketService.bookTicket(ticketDTO);
+        public ResponseEntity<ApiResponse<TicketDTO>> reserveSeats(@RequestBody TicketDTO ticketDTO) {
+                TicketDTO ticket = ticketService.reserveSeats(ticketDTO);
 
                 return ResponseEntity.ok(
                                 new ApiResponse<>(
                                                 200,
-                                                "✔ Ticket booked Successfully!",
+                                                "✔ Seats held Successfully!",
                                                 ticket,
                                                 LocalDateTime.now()));
         }
 
+        @PostMapping("/confirmBooking")
+        public ResponseEntity<ApiResponse<TicketDTO>> confirmBooking(@RequestBody TicketDTO ticketDTO) {
+
+            TicketDTO confirmedTicket = ticketService.confirmBooking(ticketDTO.getBookingToken());
+            
+            return ResponseEntity.ok(
+                            new ApiResponse<>(
+                                            200,
+                                            "✔ Ticket confirmed successfully!",
+                                            confirmedTicket,
+                                            LocalDateTime.now()));
+        }
+        
         @DeleteMapping("/deleteBooking")
         @RateLimit(rate = 3, rateInterval = 60, rateIntervalUnit = TimeUnit.SECONDS)
         public ResponseEntity<ApiResponse<TicketDTO>> deleteBooking(@RequestParam long ticketId) {

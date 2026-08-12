@@ -5,6 +5,9 @@ import org.example.bookmyshowpaymentservice.payment.config.TicketClientFeignConf
 import org.springframework.cloud.openfeign.FeignClient;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestParam;
 
 @FeignClient(
         name = "bookmyshow-booking-service",
@@ -15,4 +18,8 @@ public interface TicketClient {
 
     @GetMapping("/validateTicket/{ticketId}")
     void validateTicketExists(@PathVariable("ticketId") Long ticketId);
+
+    @PostMapping("/confirmBooking")
+    void confirmBooking(@RequestParam String bookingToken);
+    
 }

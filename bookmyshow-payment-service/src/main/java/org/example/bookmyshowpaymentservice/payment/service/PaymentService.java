@@ -35,6 +35,7 @@ public class PaymentService {
 
     @Transactional
     public PaymentResponse createPaymentIntent(CreatePaymentRequest request) {
+
         validateCreateRequest(request);
 
         // Ensure we only create payments for valid tickets.
@@ -43,30 +44,41 @@ public class PaymentService {
         String currency = request.getCurrency().toLowerCase(Locale.ROOT);
         long minorAmount = toMinorUnits(request.getAmount());
 
-        PaymentIntent paymentIntent;
-        try {
-            PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
-                    .setAmount(minorAmount)
-                     .setCurrency(currency)
-                    .addPaymentMethodType("card")
-                    .putMetadata("ticketId", String.valueOf(request.getTicketId()))
-                    .build();
+        String stripePaymentIntentId;
+        String stripeClientSecret;
 
-            paymentIntent = PaymentIntent.create(params);
-        } catch (StripeException ex) {
-            throw new IllegalStateException("Failed to create payment intent", ex);
+        if ("sk_test_mock_dev_key".equals(stripeProperties.getSecretKey()) || stripeProperties.getSecretKey() == null || stripeProperties.getSecretKey().isBlank()) {
+            stripePaymentIntentId = "pi_mock_" + java.util.UUID.randomUUID();
+            stripeClientSecret = "pi_mock_secret_" + java.util.UUID.randomUUID();
+        } else {
+            try {
+                PaymentIntentCreateParams params = PaymentIntentCreateParams.builder()
+                        .setAmount(minorAmount)
+                        .setCurrency(currency)
+                        .addPaymentMethodType("card")
+                        .putMetadata("ticketId", String.valueOf(request.getTicketId()))
+                        .build();
+
+                PaymentIntent paymentIntent = PaymentIntent.create(params);
+                stripePaymentIntentId = paymentIntent.getId();
+                stripeClientSecret = paymentIntent.getClientSecret();
+            } catch (StripeException ex) {
+                throw new IllegalStateException("Failed to create payment intent", ex);
+            }
         }
 
         Payment payment = new Payment();
         payment.setTicketId(request.getTicketId());
+        payment.setBookingToken(request.getBookingToken());
         payment.setAmount(request.getAmount());
         payment.setCurrency(currency);
         payment.setStatus(PaymentStatus.PENDING);
-        payment.setStripePaymentIntentId(paymentIntent.getId());
-        payment.setStripeClientSecret(paymentIntent.getClientSecret());
+        payment.setStripePaymentIntentId(stripePaymentIntentId);
+        payment.setStripeClientSecret(stripeClientSecret);
 
         Payment saved = paymentRepository.save(payment);
         return toResponse(saved);
+
     }
 
     @Transactional
@@ -115,6 +127,10 @@ public class PaymentService {
 
         payment.setStatus(status);
         paymentRepository.save(payment);
+
+        if(status == PaymentStatus.SUCCESS){
+            ticketClient.confirmBooking(payment.getBookingToken());
+        }
     }
 
     private void validateCreateRequest(CreatePaymentRequest request) {

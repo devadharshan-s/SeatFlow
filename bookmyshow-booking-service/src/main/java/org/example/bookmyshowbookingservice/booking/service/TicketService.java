@@ -4,12 +4,15 @@ import org.example.bookmyshowbookingservice.booking.api.dto.TicketDTO;
 import org.example.bookmyshowbookingservice.booking.client.ResilientSeatClient;
 import org.example.bookmyshowbookingservice.booking.client.ShowClient;
 import org.example.bookmyshowbookingservice.booking.client.UserClient;
+import org.example.bookmyshowbookingservice.booking.constants.ReservationStatus;
 import org.example.bookmyshowbookingservice.booking.exception.BookingFailedException;
 import org.example.bookmyshowbookingservice.booking.exception.ConcurrentTicketUpdateException;
 import org.example.bookmyshowbookingservice.booking.exception.InvalidShowIdException;
 import org.example.bookmyshowbookingservice.booking.exception.TicketCancellationException;
 import org.example.bookmyshowbookingservice.booking.exception.TicketDeletionException;
+import org.example.bookmyshowbookingservice.booking.model.Reservation;
 import org.example.bookmyshowbookingservice.booking.model.Ticket;
+import org.example.bookmyshowbookingservice.booking.repository.ReservationRepository;
 import org.example.bookmyshowbookingservice.booking.repository.TicketRepostiory;
 import org.example.bookmyshowbookingservice.common.dto.ApiResponse;
 import org.example.bookmyshowbookingservice.common.exception.TicketNotFoundException;
@@ -32,6 +35,7 @@ import java.util.List;
 public class TicketService {
 
     private final TicketRepostiory ticketRepostiory;
+    private final ReservationRepository reservationRepository;
     private final ShowClient showClient;
     private final ResilientSeatClient resilientSeatClient;
     private final UserClient userClient;
@@ -71,7 +75,14 @@ public class TicketService {
         }
     }
 
-    public TicketDTO bookTicket(TicketDTO ticketDTO) {
+    public TicketDTO reserveSeats(TicketDTO ticketDTO) {
+
+        String bookingToken = ticketDTO.getBookingToken();
+
+        // Checking for booking token(UUID)
+        if (bookingToken == null || bookingToken.isBlank()) {
+            throw new BookingFailedException("bookingToken is required and must be from frontend!");
+        }
 
         ApiResponse<Object> showResponse = showClient.getShowById(ticketDTO.getShowId());
 
@@ -81,7 +92,8 @@ public class TicketService {
 
         List<Long> seatIds = ticketDTO.getSeatIds();
 
-        ApiResponse<List<Long>> resolvedSeatResponse = resilientSeatClient.resolveShowSeatIds(ticketDTO.getShowId(), seatIds);
+        ApiResponse<List<Long>> resolvedSeatResponse = resilientSeatClient.resolveShowSeatIds(ticketDTO.getShowId(),
+                seatIds);
 
         if (resolvedSeatResponse == null || resolvedSeatResponse.getData() == null) {
             throw new BookingFailedException("Seat resolution failed for showId: " + ticketDTO.getShowId());
@@ -93,13 +105,8 @@ public class TicketService {
             throw new BookingFailedException("The requested seats are not available, Please try other seats!");
         }
 
-        String bookingToken = ticketDTO.getBookingToken();
-        if (bookingToken == null || bookingToken.isBlank()) {
-            bookingToken = java.util.UUID.randomUUID().toString();
-        }
-
         Long userId = 1L;
-        try {   
+        try {
             java.util.Optional<Jwt> jwtOpt = getJwt();
             if (jwtOpt.isPresent()) {
                 Object emailClaim = jwtOpt.get().getClaim("email");
@@ -115,35 +122,29 @@ public class TicketService {
         }
 
         ApiResponse<List<Long>> heldSeatResponse = resilientSeatClient.holdSeats(bookingToken, 300, showSeatIds);
+
         if (heldSeatResponse == null || heldSeatResponse.getData() == null || heldSeatResponse.getData().isEmpty()) {
             throw new BookingFailedException("Can't hold seats, check hold service!");
         }
-        
+
         List<Long> heldSeats = heldSeatResponse.getData();
 
-        ApiResponse<List<Long>> bookedSeatResponse = resilientSeatClient.bookSeats(bookingToken, heldSeats);
+        Reservation reservation = new Reservation();
 
-        if (bookedSeatResponse == null || bookedSeatResponse.getData() == null) {
-            try {
-                resilientSeatClient.releaseHold(bookingToken);
-            } catch (Exception ex) {
-                log.error("Failed to release Redis hold on booking failure", ex);
-            }
-            throw new BookingFailedException("Seat booking failed for seatIds: " + heldSeats);
-        }
+        reservation.setBookingToken(bookingToken);
+        reservation.setShowId(ticketDTO.getShowId());
+        reservation.setUserId(userId);
+        reservation.setShowSeatIds(heldSeats);
+        reservation.setAmount(ticketDTO.getAmountPaid());
+        reservation.setStatus(ReservationStatus.PENDING);
 
-        List<Long> bookedSeatIds = bookedSeatResponse.getData();
-
-        ApiResponse<List<Long>> confirmResponse = resilientSeatClient.confirmHold(bookingToken);
-        if (confirmResponse == null || confirmResponse.getData() == null) {
-            log.warn("Redis hold confirmation returned null/empty response for bookingToken: {}", bookingToken);
-        }
+        reservationRepository.save(reservation);
 
         TicketDTO result = new TicketDTO();
         result.setBookingToken(bookingToken);
         result.setShowId(ticketDTO.getShowId());
         result.setSeatIds(seatIds);
-        result.setShowSeatIds(bookedSeatIds);
+        result.setShowSeatIds(heldSeats);
         result.setUserId(userId);
         result.setAmountPaid(ticketDTO.getAmountPaid());
         return result;
@@ -151,17 +152,51 @@ public class TicketService {
     }
 
     @Transactional
-    public TicketDTO confirmBooking(String bookingToken, Long showId, Long userId, List<Long> showSeatIds, double amountPaid) {
+    public TicketDTO confirmBooking(String bookingToken) {
+
+        Reservation reservation = reservationRepository.findByBookingToken(bookingToken)
+                .orElseThrow(
+                        () -> new BookingFailedException("No reservation found for booking token: " + bookingToken));
+
+        if (reservation.getStatus() != ReservationStatus.PENDING) {
+            throw new BookingFailedException(
+                    "Booking status is not PENDING, it is " + reservation.getStatus() + " " + bookingToken);
+        }
+
+        ApiResponse<List<Long>> bookedSeats = resilientSeatClient.bookSeats(bookingToken, reservation.getShowSeatIds());
+
+        if (bookedSeats == null || bookedSeats.getData() == null) {
+            throw new BookingFailedException("Booking failed for token: " + bookingToken);
+        }
+
         Ticket ticket = new Ticket();
-        ticket.setShowId(showId);
-        ticket.setUserId(userId);
-        ticket.setShowSeatIds(showSeatIds);
+        ticket.setShowId(reservation.getShowId());
+        ticket.setUserId(reservation.getUserId());
+        ticket.setShowSeatIds(bookedSeats.getData());
+        ticket.setAmountPaid(reservation.getAmount());
         ticket = ticketRepostiory.save(ticket);
+
+        reservation.setStatus(ReservationStatus.CONFIRMED);
+        reservationRepository.save(reservation);
 
         TicketDTO response = modelMapper.map(ticket, TicketDTO.class);
         response.setBookingToken(bookingToken);
-        response.setAmountPaid(amountPaid);
+        response.setAmountPaid(reservation.getAmount());
+
         return response;
+        // List<Long> bookedSeatIds = bookedSeats.getData();
+
+        // Ticket ticket = new Ticket();
+        // ticket.setShowId(ticketDTO.getShowId());
+        // ticket.setUserId(ticketDTO.getUserId());
+        // ticket.setShowSeatIds(bookedSeatIds);
+        // ticket = ticketRepostiory.save(ticket);
+
+        // TicketDTO response = modelMapper.map(ticket, TicketDTO.class);
+        // response.setBookingToken(ticketDTO.getBookingToken());
+        // response.setAmountPaid(ticketDTO.getAmountPaid());
+
+        // return response;
     }
 
     @Transactional

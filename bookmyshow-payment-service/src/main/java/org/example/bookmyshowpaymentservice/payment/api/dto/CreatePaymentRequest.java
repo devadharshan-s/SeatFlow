@@ -15,6 +15,9 @@ public class CreatePaymentRequest {
     @NotNull
     private Long ticketId;
 
+    
+    private String bookingToken;
+
     @NotNull
     @DecimalMin(value = "0.01")
     private BigDecimal amount;

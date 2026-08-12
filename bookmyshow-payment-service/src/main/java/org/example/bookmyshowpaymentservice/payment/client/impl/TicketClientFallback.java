@@ -13,4 +13,10 @@ public class TicketClientFallback implements TicketClient {
         System.err.println("Fallback: Unable to validate ticket existence for ticketId: " + ticketId);
 
     }
+
+    @Override
+    public void confirmBooking(String bookingToken){
+
+        System.err.println("Fallback: Unable to confirm booking for bookingToken: " + bookingToken);
+    }
 }

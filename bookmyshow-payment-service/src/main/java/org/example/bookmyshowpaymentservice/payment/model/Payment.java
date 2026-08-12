@@ -17,6 +17,9 @@ public class Payment {
     @Column(name = "payment_id")
     private Long paymentId;
 
+    @Column(name="booking_token", nullable = false, length = 100)
+    private String bookingToken;
+
     @Column(name = "ticket_id", nullable = false)
     private Long ticketId;
 
