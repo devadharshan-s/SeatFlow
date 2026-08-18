@@ -17,6 +17,7 @@ dist-ssr
 .env
 .env.local
 .env.*.local
+.vite
 
 # Editor / OS
 .vscode/*
@@ -29,4 +30,11 @@ dist-ssr
 *.sln
 *.sw?
 
-.vite
+# Agent files
+AGENTS.md
+CLAUDE.md
+CONTEXT.md
+handoff.md
+skills-lock.json
+.agents
+.scratch

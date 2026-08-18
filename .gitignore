@@ -40,7 +40,6 @@ keycloak.out.log
 .codex
 .scratch
 
-
 # Agent files
 AGENTS.md
 CLAUDE.md
