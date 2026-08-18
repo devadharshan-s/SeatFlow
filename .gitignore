@@ -36,4 +36,10 @@ keycloak.out.log
 .env
 **/.env
 **/application-local.properties
+.agents
+.claude
+.codex
+.scratch
+.agents
+
 

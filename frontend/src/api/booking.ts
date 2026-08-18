@@ -17,14 +17,15 @@ bookingApi.interceptors.request.use((config) => {
   return config;
 });
 
-export const bookTickets = async (showId: string, seatIds: string[], userId: string, bookingToken?: string): Promise<any> => {
+export const bookTickets = async (showId: string, seatIds: string[], userId: string, bookingToken?: string, amountPaid?: number): Promise<any> => {
   try {
     const numUserId = !isNaN(Number(userId)) && userId !== '' ? Number(userId) : null;
-    const response = await bookingApi.post('/bookmyshow-booking-service/bookTickets', {
+    const response = await bookingApi.post('/bookmyshow-booking-service/reserveSeats', {
       showId: Number(showId),
       seatIds: seatIds.map(Number),
       userId: numUserId,
-      bookingToken
+      bookingToken,
+      amountPaid
     });
     return response.data; // Expecting TicketResponseDTO
   } catch (error) {
@@ -52,3 +53,14 @@ export const validateTicket = async (ticketId: string): Promise<any> => {
     throw error;
   }
 };
+
+export const confirmBooking = async (bookingToken: string): Promise<any> => {
+  try {
+    const response = await bookingApi.post(`/bookmyshow-booking-service/confirmBooking?bookingToken=${bookingToken}`);
+    return response.data;
+  } catch (error) {
+    console.error('Error confirming booking:', error);
+    throw error;
+  }
+};
+

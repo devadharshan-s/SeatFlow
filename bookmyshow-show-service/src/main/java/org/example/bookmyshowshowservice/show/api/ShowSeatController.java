@@ -59,11 +59,11 @@ public class ShowSeatController {
         }
 
 
-        @PostMapping("/bookSeats/{bookingToken}")
-        public ResponseEntity<ApiResponse<List<Long>>> bookSeats(@PathVariable String bookingToken,
+        @PostMapping("/bookSeats/{ticketId}")
+        public ResponseEntity<ApiResponse<List<Long>>> bookSeats(@PathVariable Long ticketId,
                         @RequestBody List<Long> showSeatIds) {
 
-                List<Long> bookSeats = showSeatService.bookSeats(showSeatIds, 0L);
+                List<Long> bookSeats = showSeatService.bookSeats(showSeatIds, ticketId);
 
                 return ResponseEntity.ok(
                                 new ApiResponse<>(

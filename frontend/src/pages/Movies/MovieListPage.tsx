@@ -78,7 +78,7 @@ const MovieListPage: React.FC = () => {
                             <CardBody>
                                 <MovieTitle>{movie.title}</MovieTitle>
                                 <GenreTags>
-                                    {movie.genres.slice(0, 3).map((g) => (
+                                    {(movie.genres || []).slice(0, 3).map((g) => (
                                         <GenreTag key={g}>{g}</GenreTag>
                                     ))}
                                 </GenreTags>

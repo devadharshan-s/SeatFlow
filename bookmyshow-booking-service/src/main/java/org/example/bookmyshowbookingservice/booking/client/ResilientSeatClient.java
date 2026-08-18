@@ -58,13 +58,27 @@ public class ResilientSeatClient {
 
     }
 
-    // bookSeats is idempotent (same bookingToken re-books safely), so @Retry is safe
+    // Batch resolve-and-hold: resolves raw seatIds → showSeatIds and acquires Redis hold in a single HTTP round-trip.
+    // @Retry is safe — the Lua script in show-service checks for existing holds before setting, so retrying with
+    // the same bookingToken either succeeds cleanly or returns a clear "already held" error.
+    @Retry(name = "seatService")
+    @CircuitBreaker(name = "seatServiceCircuit")
+    public ApiResponse<List<Long>> holdAndResolveSeats(Long showId, String bookingToken, int holdSeconds, List<Long> seatIds) {
+
+        ApiResponse<List<Long>> response = seatClient.holdAndResolveSeats(showId, bookingToken, holdSeconds, seatIds);
+        validateResponse(response, "holdAndResolveSeats");
+        return response;
+
+    }
+
+    // bookSeats is idempotent (same bookingToken re-books safely), so @Retry is
+    // safe
     // here
     @Retry(name = "seatService")
     @CircuitBreaker(name = "seatServiceCircuit")
-    public ApiResponse<List<Long>> bookSeats(String bookingToken, List<Long> seatIds) {
+    public ApiResponse<List<Long>> bookSeats(Long ticketId, List<Long> seatIds) {
 
-        ApiResponse<List<Long>> response = seatClient.bookSeats(bookingToken, seatIds);
+        ApiResponse<List<Long>> response = seatClient.bookSeats(ticketId, seatIds);
         validateResponse(response, "bookSeats");
         return response;
 
@@ -86,26 +100,6 @@ public class ResilientSeatClient {
 
         ApiResponse<List<Long>> response = seatClient.cancelSeats(ticketId);
         validateResponse(response, "cancelSeats");
-        return response;
-
-    }
-
-    @Retry(name = "seatService")
-    @CircuitBreaker(name = "seatServiceCircuit")
-    public ApiResponse<Boolean> releaseHold(String bookingToken) {
-
-        ApiResponse<Boolean> response = seatClient.releaseHold(bookingToken);
-        validateResponse(response, "releaseHold");
-        return response;
-
-    }
-
-    @Retry(name = "seatService")
-    @CircuitBreaker(name = "seatServiceCircuit")
-    public ApiResponse<List<Long>> confirmHold(String bookingToken) {
-
-        ApiResponse<List<Long>> response = seatClient.confirmHold(bookingToken);
-        validateResponse(response, "confirmHold");
         return response;
 
     }

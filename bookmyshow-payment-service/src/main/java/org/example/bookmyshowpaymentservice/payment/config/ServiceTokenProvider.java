@@ -1,6 +1,7 @@
 package org.example.bookmyshowpaymentservice.payment.config;
 
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.LinkedMultiValueMap;
@@ -12,6 +13,7 @@ import java.util.Map;
 
 @Component
 @RequiredArgsConstructor
+@Slf4j
 public class ServiceTokenProvider {
 
     private final ServiceAuthProperties authProperties;
@@ -54,9 +56,10 @@ public class ServiceTokenProvider {
             long expiresInSeconds = expiresInValue instanceof Number number ? number.longValue() : 60L;
             expiresAt = Instant.now().plusSeconds(expiresInSeconds);
         } catch (Exception ex) {
-            System.err.println("Keycloak is offline/unreachable (" + authProperties.getTokenUrl() + "). Using 'mock-service-token' for local fallback.");
-            accessToken = "mock-service-token";
-            expiresAt = Instant.now().plusSeconds(3600);
+            log.warn("[DEBUG-svc-token] Keycloak unreachable at {}. Service token not cached — will retry on next call. Cause: {}",
+                    authProperties.getTokenUrl(), ex.getMessage());
+            accessToken = null;
+            expiresAt = Instant.EPOCH;
         }
 
         return accessToken;

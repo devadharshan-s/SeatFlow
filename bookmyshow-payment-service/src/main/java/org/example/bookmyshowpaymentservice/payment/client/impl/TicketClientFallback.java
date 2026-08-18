@@ -1,22 +1,18 @@
 package org.example.bookmyshowpaymentservice.payment.client.impl;
 
+import lombok.extern.slf4j.Slf4j;
 import org.example.bookmyshowpaymentservice.payment.client.TicketClient;
 import org.springframework.stereotype.Component;
 
 @Component
+@Slf4j
 public class TicketClientFallback implements TicketClient {
 
     @Override
-    public void validateTicketExists(Long ticketId) {
+    public void confirmBooking(String bookingToken) {
 
-        // Fallback execution when booking-service is unavailable
-        System.err.println("Fallback: Unable to validate ticket existence for ticketId: " + ticketId);
+        // Fallback: booking-service is unavailable — booking confirmation lost; manual reconciliation may be needed
+        log.error("Fallback: Unable to confirm booking for bookingToken: {}. Payment succeeded but booking not confirmed — investigate!", bookingToken);
 
-    }
-
-    @Override
-    public void confirmBooking(String bookingToken){
-
-        System.err.println("Fallback: Unable to confirm booking for bookingToken: " + bookingToken);
     }
 }

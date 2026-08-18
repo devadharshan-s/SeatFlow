@@ -38,16 +38,17 @@ public class PaymentService {
 
         validateCreateRequest(request);
 
-        // Ensure we only create payments for valid tickets.
-        ticketClient.validateTicketExists(request.getTicketId());
-
         String currency = request.getCurrency().toLowerCase(Locale.ROOT);
         long minorAmount = toMinorUnits(request.getAmount());
 
         String stripePaymentIntentId;
         String stripeClientSecret;
 
-        if ("sk_test_mock_dev_key".equals(stripeProperties.getSecretKey()) || stripeProperties.getSecretKey() == null || stripeProperties.getSecretKey().isBlank()) {
+        boolean isMock = "sk_test_mock_dev_key".equals(stripeProperties.getSecretKey())
+                || stripeProperties.getSecretKey() == null
+                || stripeProperties.getSecretKey().isBlank();
+
+        if (isMock) {
             stripePaymentIntentId = "pi_mock_" + java.util.UUID.randomUUID();
             stripeClientSecret = "pi_mock_secret_" + java.util.UUID.randomUUID();
         } else {
@@ -56,7 +57,7 @@ public class PaymentService {
                         .setAmount(minorAmount)
                         .setCurrency(currency)
                         .addPaymentMethodType("card")
-                        .putMetadata("ticketId", String.valueOf(request.getTicketId()))
+                        .putMetadata("bookingToken", String.valueOf(request.getBookingToken()))
                         .build();
 
                 PaymentIntent paymentIntent = PaymentIntent.create(params);
@@ -68,11 +69,10 @@ public class PaymentService {
         }
 
         Payment payment = new Payment();
-        payment.setTicketId(request.getTicketId());
         payment.setBookingToken(request.getBookingToken());
         payment.setAmount(request.getAmount());
         payment.setCurrency(currency);
-        payment.setStatus(PaymentStatus.PENDING);
+        payment.setStatus(isMock ? PaymentStatus.SUCCESS : PaymentStatus.PENDING);
         payment.setStripePaymentIntentId(stripePaymentIntentId);
         payment.setStripeClientSecret(stripeClientSecret);
 
@@ -113,8 +113,7 @@ public class PaymentService {
     private void updatePaymentStatus(Event event, PaymentStatus status) {
         EventDataObjectDeserializer deserializer = event.getDataObjectDeserializer();
         StripeObject stripeObject = deserializer.getObject().orElseThrow(
-                () -> new IllegalArgumentException("Unable to deserialize Stripe event payload")
-        );
+                () -> new IllegalArgumentException("Unable to deserialize Stripe event payload"));
 
         if (!(stripeObject instanceof PaymentIntent paymentIntent)) {
             throw new IllegalArgumentException("Expected payment_intent object in Stripe event");
@@ -128,17 +127,18 @@ public class PaymentService {
         payment.setStatus(status);
         paymentRepository.save(payment);
 
-        if(status == PaymentStatus.SUCCESS){
+        if (status == PaymentStatus.SUCCESS) {
             ticketClient.confirmBooking(payment.getBookingToken());
         }
     }
 
     private void validateCreateRequest(CreatePaymentRequest request) {
+
         if (request == null) {
             throw new IllegalArgumentException("Payment request is required");
         }
-        if (request.getTicketId() == null || request.getTicketId() <= 0) {
-            throw new IllegalArgumentException("Valid ticketId is required");
+        if (request.getBookingToken() == null || request.getBookingToken().isBlank()) {
+            throw new IllegalArgumentException("bookingToken is required");
         }
         if (request.getAmount() == null || request.getAmount().compareTo(BigDecimal.ZERO) <= 0) {
             throw new IllegalArgumentException("Amount must be greater than zero");
@@ -146,6 +146,7 @@ public class PaymentService {
         if (request.getCurrency() == null || request.getCurrency().isBlank()) {
             throw new IllegalArgumentException("Currency is required");
         }
+
     }
 
     private long toMinorUnits(BigDecimal amount) {
@@ -162,7 +163,6 @@ public class PaymentService {
     private PaymentResponse toResponse(Payment payment) {
         PaymentResponse response = new PaymentResponse();
         response.setPaymentId(payment.getPaymentId());
-        response.setTicketId(payment.getTicketId());
         response.setAmount(payment.getAmount());
         response.setCurrency(payment.getCurrency());
         response.setStatus(payment.getStatus());
@@ -172,10 +172,3 @@ public class PaymentService {
         return response;
     }
 }
-
-
-
-
-
-
-

@@ -1,10 +1,9 @@
 // src/pages/Payments/PaymentStatusPage.tsx
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import styled from 'styled-components';
-import { bookTickets } from '../../api/booking';
+import { bookTickets, deleteBooking, confirmBooking } from '../../api/booking';
 import { createPaymentIntent } from '../../api/payment';
-import { unlockSeats } from '../../api/show';
 import { useAuth } from '../../contexts/AuthContext';
 import { theme } from '../../styles/theme';
 import SkeletonCard from '../../components/common/SkeletonCard';
@@ -19,6 +18,7 @@ interface LocationState {
 type Stage = 'idle' | 'booking' | 'paying' | 'success' | 'booking-error' | 'payment-error';
 
 interface BookingResult {
+    bookingToken: string;
     ticketId: string | number;
     showSeatIds: number[];
     amountPaid: number;
@@ -43,6 +43,7 @@ const PaymentStatusPage: React.FC = () => {
     const [bookingResult, setBookingResult] = useState<BookingResult | null>(null);
     const [paymentResult, setPaymentResult] = useState<PaymentResult | null>(null);
     const [errorMsg, setErrorMsg] = useState<string>('');
+    const bookingStarted = useRef(false);
 
     const runBookingAndPayment = useCallback(async () => {
         if (!state) return;
@@ -57,11 +58,13 @@ const PaymentStatusPage: React.FC = () => {
                 state.showId,
                 state.lockedSeatIds.map(String),
                 userId,
-                state.bookingToken
+                state.bookingToken,
+                state.totalAmount
             );
             // bookTickets returns ApiResponse<TicketDTO>; drill into .data if wrapped
             const dto = bookingResponse?.data ?? bookingResponse;
             ticketData = {
+                bookingToken: dto.bookingToken ?? state.bookingToken,
                 ticketId: dto.ticketId,
                 showSeatIds: dto.showSeatIds ?? state.lockedSeatIds,
                 amountPaid: dto.amountPaid ?? state.totalAmount,
@@ -80,7 +83,7 @@ const PaymentStatusPage: React.FC = () => {
         setStage('paying');
         try {
             const paymentResponse = await createPaymentIntent({
-                ticketId: Number(ticketData.ticketId),
+                bookingToken: ticketData.bookingToken,
                 amount: ticketData.amountPaid,
                 currency: 'INR',
             });
@@ -91,6 +94,29 @@ const PaymentStatusPage: React.FC = () => {
                 clientSecret: pd.clientSecret,
                 returnUrl: pd.returnUrl,
             });
+
+            // Auto-confirm the booking on backend if in mock mode
+            if (pd.clientSecret && pd.clientSecret.startsWith('pi_mock_secret_')) {
+                const confirmResponse = await confirmBooking(ticketData.bookingToken);
+                const confirmedDto = confirmResponse?.data ?? confirmResponse;
+                if (confirmedDto?.ticketId) {
+                    ticketData = {
+                        ...ticketData,
+                        ticketId: confirmedDto.ticketId,
+                        showSeatIds: confirmedDto.showSeatIds ?? ticketData.showSeatIds,
+                        amountPaid: confirmedDto.amountPaid ?? ticketData.amountPaid,
+                    };
+                    setBookingResult(ticketData);
+                }
+                // In mock dev flow, reflect successful payment status on UI
+                setPaymentResult({
+                    paymentId: pd.paymentId,
+                    status: 'SUCCESS',
+                    clientSecret: pd.clientSecret,
+                    returnUrl: pd.returnUrl,
+                });
+            }
+
             setStage('success');
         } catch (err: any) {
             const detail = err.response?.data?.message
@@ -102,15 +128,16 @@ const PaymentStatusPage: React.FC = () => {
     }, [state, user]);
 
     useEffect(() => {
-        if (stage === 'idle') {
+        if (stage === 'idle' && !bookingStarted.current) {
+            bookingStarted.current = true;
             runBookingAndPayment();
         }
-    }, []);
+    }, [stage, runBookingAndPayment]);
 
     const handleRelease = async () => {
-        if (bookingResult?.ticketId && bookingResult?.showSeatIds) {
+        if (bookingResult?.ticketId) {
             try {
-                await unlockSeats(String(bookingResult.ticketId), bookingResult.showSeatIds);
+                await deleteBooking(String(bookingResult.ticketId));
             } catch {
                 /* best-effort */
             }

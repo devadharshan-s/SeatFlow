@@ -19,7 +19,7 @@ export interface SeatAvailabilityResponse {
 }
 
 export interface CreatePaymentRequest {
-  ticketId: number;
+  bookingToken: string;
   amount: number;
   currency: string;
 }
@@ -33,7 +33,6 @@ export enum PaymentStatus {
 
 export interface PaymentResponse {
   paymentId: number;
-  ticketId: number;
   amount: number;
   currency: string;
   status: PaymentStatus;
@@ -50,6 +49,7 @@ export interface TicketDTO {
 
 export interface TicketResponseDTO {
   ticketId: string;
+  bookingToken: string;
   showSeatIds: number[];
   showId: number;
   userId: string;

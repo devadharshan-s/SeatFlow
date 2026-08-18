@@ -13,9 +13,7 @@ import java.math.BigDecimal;
 public class CreatePaymentRequest {
 
     @NotNull
-    private Long ticketId;
-
-    
+    @NotBlank
     private String bookingToken;
 
     @NotNull
@@ -25,4 +23,3 @@ public class CreatePaymentRequest {
     @NotBlank
     private String currency;
 }
-

@@ -11,7 +11,6 @@ import java.math.BigDecimal;
 public class PaymentResponse {
 
     private Long paymentId;
-    private Long ticketId;
     private BigDecimal amount;
     private String currency;
     private PaymentStatus status;

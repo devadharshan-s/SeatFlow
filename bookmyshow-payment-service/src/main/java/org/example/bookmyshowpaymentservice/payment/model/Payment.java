@@ -20,9 +20,6 @@ public class Payment {
     @Column(name="booking_token", nullable = false, length = 100)
     private String bookingToken;
 
-    @Column(name = "ticket_id", nullable = false)
-    private Long ticketId;
-
     @Column(name = "amount", nullable = false, precision = 12, scale = 2)
     private BigDecimal amount;
 

@@ -21,8 +21,8 @@ public interface SeatClient {
     @PostMapping("/lockSeats/{seconds}")
     ApiResponse<List<Long>> lockSeats(@PathVariable("seconds") int seconds, @RequestBody List<Long> seatIds);
 
-    @PostMapping("/bookSeats/{bookingToken}")
-    ApiResponse<List<Long>> bookSeats(@PathVariable("bookingToken") String bookingToken, @RequestBody List<Long> seatIds);
+    @PostMapping("/bookSeats/{ticketId}")
+    ApiResponse<List<Long>> bookSeats(@PathVariable("ticketId") Long ticketId, @RequestBody List<Long> seatIds);
 
     @PostMapping("/unlockSeats/{ticketId}")
     ApiResponse<Boolean> unlockSeats(@PathVariable("ticketId") Long ticketId, @RequestBody List<Long> seatIds);
@@ -34,6 +34,14 @@ public interface SeatClient {
     ApiResponse<List<Long>> holdSeats(
             @RequestParam("bookingToken") String bookingToken,
             @RequestParam("holdSeconds") int holdSeconds,
+            @RequestBody List<Long> seatIds);
+
+    // Batch: resolves raw seatIds → showSeatIds and holds them atomically in one HTTP round-trip
+    @PostMapping("/shows/{showId}/hold-seats")
+    ApiResponse<List<Long>> holdAndResolveSeats(
+            @PathVariable("showId") Long showId,
+            @RequestParam("bookingToken") String bookingToken,
+            @RequestParam(value = "holdSeconds", defaultValue = "300") int holdSeconds,
             @RequestBody List<Long> seatIds);
 
     @PostMapping("/show-seat/releaseHold")

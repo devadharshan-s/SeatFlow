@@ -84,6 +84,20 @@ public class TicketService {
             throw new BookingFailedException("bookingToken is required and must be from frontend!");
         }
 
+        // Idempotency check: if reservation already exists, just return it
+        java.util.Optional<Reservation> existingReservationOpt = reservationRepository.findByBookingToken(bookingToken);
+        if (existingReservationOpt.isPresent()) {
+            Reservation existing = existingReservationOpt.get();
+            TicketDTO result = new TicketDTO();
+            result.setBookingToken(bookingToken);
+            result.setShowId(existing.getShowId());
+            result.setSeatIds(ticketDTO.getSeatIds());
+            result.setShowSeatIds(existing.getShowSeatIds());
+            result.setUserId(existing.getUserId());
+            result.setAmountPaid(existing.getAmount());
+            return result;
+        }
+
         ApiResponse<Object> showResponse = showClient.getShowById(ticketDTO.getShowId());
 
         if (showResponse == null || showResponse.getData() == null) {
@@ -92,21 +106,9 @@ public class TicketService {
 
         List<Long> seatIds = ticketDTO.getSeatIds();
 
-        ApiResponse<List<Long>> resolvedSeatResponse = resilientSeatClient.resolveShowSeatIds(ticketDTO.getShowId(),
-                seatIds);
-
-        if (resolvedSeatResponse == null || resolvedSeatResponse.getData() == null) {
-            throw new BookingFailedException("Seat resolution failed for showId: " + ticketDTO.getShowId());
-        }
-
-        List<Long> showSeatIds = resolvedSeatResponse.getData();
-
-        if (seatIds.size() != showSeatIds.size()) {
-            throw new BookingFailedException("The requested seats are not available, Please try other seats!");
-        }
-
         Long userId = 1L;
         try {
+            // Resolve caller identity from JWT so we can persist it on the Reservation
             java.util.Optional<Jwt> jwtOpt = getJwt();
             if (jwtOpt.isPresent()) {
                 Object emailClaim = jwtOpt.get().getClaim("email");
@@ -121,13 +123,15 @@ public class TicketService {
             log.warn("Security context did not contain a valid JWT user, using default userId=1: {}", ex.getMessage());
         }
 
-        ApiResponse<List<Long>> heldSeatResponse = resilientSeatClient.holdSeats(bookingToken, 300, showSeatIds);
+        // Single batched call: resolves raw seatIds → showSeatIds and acquires the Redis hold atomically (one HTTP round-trip)
+        ApiResponse<List<Long>> holdResponse = resilientSeatClient.holdAndResolveSeats(
+                ticketDTO.getShowId(), bookingToken, 300, seatIds);
 
-        if (heldSeatResponse == null || heldSeatResponse.getData() == null || heldSeatResponse.getData().isEmpty()) {
-            throw new BookingFailedException("Can't hold seats, check hold service!");
+        if (holdResponse == null || holdResponse.getData() == null || holdResponse.getData().isEmpty()) {
+            throw new BookingFailedException("Seat resolution or hold failed for showId: " + ticketDTO.getShowId());
         }
 
-        List<Long> heldSeats = heldSeatResponse.getData();
+        List<Long> heldSeats = holdResponse.getData();
 
         Reservation reservation = new Reservation();
 
@@ -162,19 +166,20 @@ public class TicketService {
             throw new BookingFailedException(
                     "Booking status is not PENDING, it is " + reservation.getStatus() + " " + bookingToken);
         }
+        
+        Ticket ticket = new Ticket();
+        ticket.setShowId(reservation.getShowId());
+        ticket.setUserId(reservation.getUserId());
+        ticket.setAmountPaid(reservation.getAmount());
+        ticket.setShowSeatIds(new java.util.ArrayList<>(reservation.getShowSeatIds()));
 
-        ApiResponse<List<Long>> bookedSeats = resilientSeatClient.bookSeats(bookingToken, reservation.getShowSeatIds());
+        ticket = ticketRepostiory.save(ticket);
+
+        ApiResponse<List<Long>> bookedSeats = resilientSeatClient.bookSeats(ticket.getTicketId(), reservation.getShowSeatIds());
 
         if (bookedSeats == null || bookedSeats.getData() == null) {
             throw new BookingFailedException("Booking failed for token: " + bookingToken);
         }
-
-        Ticket ticket = new Ticket();
-        ticket.setShowId(reservation.getShowId());
-        ticket.setUserId(reservation.getUserId());
-        ticket.setShowSeatIds(bookedSeats.getData());
-        ticket.setAmountPaid(reservation.getAmount());
-        ticket = ticketRepostiory.save(ticket);
 
         reservation.setStatus(ReservationStatus.CONFIRMED);
         reservationRepository.save(reservation);
@@ -184,19 +189,7 @@ public class TicketService {
         response.setAmountPaid(reservation.getAmount());
 
         return response;
-        // List<Long> bookedSeatIds = bookedSeats.getData();
 
-        // Ticket ticket = new Ticket();
-        // ticket.setShowId(ticketDTO.getShowId());
-        // ticket.setUserId(ticketDTO.getUserId());
-        // ticket.setShowSeatIds(bookedSeatIds);
-        // ticket = ticketRepostiory.save(ticket);
-
-        // TicketDTO response = modelMapper.map(ticket, TicketDTO.class);
-        // response.setBookingToken(ticketDTO.getBookingToken());
-        // response.setAmountPaid(ticketDTO.getAmountPaid());
-
-        // return response;
     }
 
     @Transactional

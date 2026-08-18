@@ -16,9 +16,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 )
 public interface TicketClient {
 
-    @GetMapping("/validateTicket/{ticketId}")
-    void validateTicketExists(@PathVariable("ticketId") Long ticketId);
-
     @PostMapping("/confirmBooking")
     void confirmBooking(@RequestParam String bookingToken);
     

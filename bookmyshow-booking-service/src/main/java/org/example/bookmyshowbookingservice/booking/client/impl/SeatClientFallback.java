@@ -34,7 +34,7 @@ public class SeatClientFallback implements SeatClient {
     }
 
     @Override
-    public ApiResponse<List<Long>> bookSeats(String bookingToken, List<Long> seatIds) {
+    public ApiResponse<List<Long>> bookSeats(Long ticketId, List<Long> seatIds) {
 
         return new ApiResponse<>(
                 503,
@@ -72,6 +72,17 @@ public class SeatClientFallback implements SeatClient {
         return new ApiResponse<>(
                 503,
                 "Fallback: Unable to hold seats at this time.",
+                Collections.emptyList(),
+                LocalDateTime.now());
+
+    }
+
+    @Override
+    public ApiResponse<List<Long>> holdAndResolveSeats(Long showId, String bookingToken, int holdSeconds, List<Long> seatIds) {
+
+        return new ApiResponse<>(
+                503,
+                "Fallback: Unable to resolve and hold seats at this time.",
                 Collections.emptyList(),
                 LocalDateTime.now());
 

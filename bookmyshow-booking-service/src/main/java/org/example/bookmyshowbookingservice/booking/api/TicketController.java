@@ -33,6 +33,7 @@ public class TicketController {
         @PostMapping("/reserveSeats")
         @RateLimit(rate = 3, rateInterval = 60, rateIntervalUnit = TimeUnit.SECONDS)
         public ResponseEntity<ApiResponse<TicketDTO>> reserveSeats(@RequestBody TicketDTO ticketDTO) {
+
                 TicketDTO ticket = ticketService.reserveSeats(ticketDTO);
 
                 return ResponseEntity.ok(
@@ -41,12 +42,13 @@ public class TicketController {
                                                 "✔ Seats held Successfully!",
                                                 ticket,
                                                 LocalDateTime.now()));
+
         }
 
         @PostMapping("/confirmBooking")
-        public ResponseEntity<ApiResponse<TicketDTO>> confirmBooking(@RequestBody TicketDTO ticketDTO) {
+        public ResponseEntity<ApiResponse<TicketDTO>> confirmBooking(@RequestParam String bookingToken) {
 
-            TicketDTO confirmedTicket = ticketService.confirmBooking(ticketDTO.getBookingToken());
+            TicketDTO confirmedTicket = ticketService.confirmBooking(bookingToken);
             
             return ResponseEntity.ok(
                             new ApiResponse<>(
@@ -54,11 +56,13 @@ public class TicketController {
                                             "✔ Ticket confirmed successfully!",
                                             confirmedTicket,
                                             LocalDateTime.now()));
+
         }
         
         @DeleteMapping("/deleteBooking")
         @RateLimit(rate = 3, rateInterval = 60, rateIntervalUnit = TimeUnit.SECONDS)
         public ResponseEntity<ApiResponse<TicketDTO>> deleteBooking(@RequestParam long ticketId) {
+
                 TicketDTO canceledTicket = ticketService.cancelTicket(ticketId);
 
                 return ResponseEntity.ok(

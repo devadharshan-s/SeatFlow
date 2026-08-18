@@ -68,8 +68,9 @@ const ShowBookingPage: React.FC = () => {
 
   const handleProceedToPayment = () => {
     if (selectedSeats.length === 0) return;
+    const bookingToken = crypto.randomUUID();
     navigate('/payments/status', {
-      state: { showId, lockedSeatIds: selectedSeats, totalAmount: calculateTotalAmount() },
+      state: { showId, lockedSeatIds: selectedSeats, totalAmount: calculateTotalAmount(), bookingToken },
     });
   };
 

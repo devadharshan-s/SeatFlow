@@ -10,10 +10,18 @@ interface AuthContextType {
 
 export const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
+const parseJwt = (token: string): any => {
+  try {
+    return JSON.parse(atob(token.split('.')[1]));
+  } catch {
+    return null;
+  }
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const initialToken = localStorage.getItem('jwt_token');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(!!initialToken);
-  const [user, setUser] = useState<any>(null); // You might want to store/fetch user data from token
+  const [user, setUser] = useState<any>(initialToken ? parseJwt(initialToken) : null);
   const [token, setToken] = useState<string | null>(initialToken);
 
   const login = (newToken: string, newUser: any) => {
