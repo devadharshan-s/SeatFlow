@@ -36,10 +36,15 @@ keycloak.out.log
 .env
 **/.env
 **/application-local.properties
-.agents
 .claude
 .codex
 .scratch
+
+# Agent files
+AGENTS.md
+CLAUDE.md
+CONTEXT.md
+handoff.md
+skills-lock.json
 .agents
-
-
+.scratch
